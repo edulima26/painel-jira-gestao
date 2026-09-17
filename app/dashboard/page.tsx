@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     const c = completionByProject.get(p.id);
     const pct = c?.completion_pct ?? 0;
     const front = frontById.get(p.work_front_id);
-    const assigneeName = (p.profiles as { full_name: string | null } | null)?.full_name || p.jira_assignee_name || "Sem responsável";
+    const assigneeName = (p.profiles as unknown as { full_name: string | null } | null)?.full_name || p.jira_assignee_name || "Sem responsável";
 
     const isDone = pct >= 100;
     const isLate = !isDone && !!p.due_date && new Date(p.due_date).getTime() < now;

@@ -40,7 +40,7 @@ export default async function MeuPainelPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {(myProjects ?? []).map((p) => {
               const c = completionByProject.get(p.id);
-              const front = (p.work_fronts as { name: string } | null)?.name ?? "—";
+              const front = (p.work_fronts as unknown as { name: string } | null)?.name ?? "—";
               return (
                 <div key={p.id} className="card">
                   <p className="text-xs uppercase tracking-wide text-slate-400">{front}</p>
@@ -69,7 +69,7 @@ export default async function MeuPainelPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-900">{a.name}</p>
                   <p className="text-xs text-slate-500">
-                    {(a.projects as { name: string } | null)?.name} · {a.jira_key}
+                    {(a.projects as unknown as { name: string } | null)?.name} · {a.jira_key}
                   </p>
                 </div>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
