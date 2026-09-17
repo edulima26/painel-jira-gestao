@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabase/functions";
 
 interface ExistingConnection {
   site_url: string;
@@ -10,7 +10,6 @@ interface ExistingConnection {
 }
 
 export default function JiraConnectionForm({ existingConnection }: { existingConnection: ExistingConnection | null }) {
-  const supabase = createClient();
   const [siteUrl, setSiteUrl] = useState(existingConnection?.site_url ?? "");
   const [accountEmail, setAccountEmail] = useState(existingConnection?.account_email ?? "");
   const [apiToken, setApiToken] = useState("");
@@ -23,19 +22,17 @@ export default function JiraConnectionForm({ existingConnection }: { existingCon
     setLoading(true);
     setMessage(null);
 
-    const { data, error } = await supabase.functions.invoke("save-jira-connection", {
-      body: {
-        site_url: siteUrl,
-        account_email: accountEmail,
-        api_token: apiToken,
-        sync_interval_minutes: Number(syncInterval),
-      },
+    const { error } = await invokeEdgeFunction("save-jira-connection", {
+      site_url: siteUrl,
+      account_email: accountEmail,
+      api_token: apiToken,
+      sync_interval_minutes: Number(syncInterval),
     });
 
     setLoading(false);
 
-    if (error || data?.error) {
-      setMessage({ type: "error", text: data?.error ?? "Não foi possível salvar a conexão." });
+    if (error) {
+      setMessage({ type: "error", text: error });
       return;
     }
 

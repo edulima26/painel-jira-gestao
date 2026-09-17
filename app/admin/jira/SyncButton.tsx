@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabase/functions";
+
+interface SyncResult {
+  items_synced: number;
+  skipped: boolean;
+  reason?: string;
+}
 
 export default function SyncButton() {
-  const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -14,16 +19,16 @@ export default function SyncButton() {
     setLoading(true);
     setMessage(null);
 
-    const { data, error } = await supabase.functions.invoke("jira-sync", { body: {} });
+    const { data, error } = await invokeEdgeFunction<SyncResult>("jira-sync", {});
 
     setLoading(false);
 
-    if (error || data?.error) {
-      setMessage(data?.error ?? "Falha ao sincronizar.");
+    if (error) {
+      setMessage(error);
       return;
     }
 
-    setMessage(`Sincronizado: ${data.items_synced} itens.`);
+    setMessage(data?.skipped ? (data.reason ?? "Sincronização ainda não necessária.") : `Sincronizado: ${data?.items_synced ?? 0} itens.`);
     router.refresh();
   }
 
