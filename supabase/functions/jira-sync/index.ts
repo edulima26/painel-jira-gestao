@@ -35,17 +35,22 @@ async function jiraSearch(
   fields: string[],
 ): Promise<JiraIssue[]> {
   const issues: JiraIssue[] = [];
-  let startAt = 0;
+  let nextPageToken: string | undefined;
   // deno-lint-ignore no-constant-condition
   while (true) {
-    const res = await fetch(`${siteUrl}/rest/api/3/search`, {
+    const body: Record<string, unknown> = { jql, fields, maxResults: PAGE_SIZE };
+    if (nextPageToken) body.nextPageToken = nextPageToken;
+
+    // Endpoint atual da Atlassian (o antigo /rest/api/3/search foi descontinuado em 2025
+    // e responde 410 Gone). Este usa paginação por cursor (nextPageToken), não por startAt/total.
+    const res = await fetch(`${siteUrl}/rest/api/3/search/jql`, {
       method: "POST",
       headers: {
         Authorization: authHeader,
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ jql, fields, startAt, maxResults: PAGE_SIZE }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -56,9 +61,8 @@ async function jiraSearch(
     const data = await res.json();
     issues.push(...(data.issues ?? []));
 
-    const total = data.total ?? issues.length;
-    startAt += PAGE_SIZE;
-    if (startAt >= total || (data.issues ?? []).length === 0) break;
+    if (data.isLast || !data.nextPageToken || (data.issues ?? []).length === 0) break;
+    nextPageToken = data.nextPageToken;
   }
   return issues;
 }
