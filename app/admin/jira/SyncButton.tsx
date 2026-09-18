@@ -50,9 +50,9 @@ export default function SyncButton() {
     }
 
     setMessage(
-      `Sincronizado: ${data.work_fronts} épicos, ${data.projects} histórias, ${data.activities} tarefas. ` +
-        `Ignoradas: ${data.skipped_stories_without_epic} histórias sem épico e ${data.skipped_tasks_without_project} tarefas sem história. ` +
-        `Pai das histórias: ${formatCounts(data.parent_types?.stories)}. Pai das tarefas: ${formatCounts(data.parent_types?.tasks)}.`,
+      `Sincronizado: ${data.work_fronts} épicos, ${data.projects} histórias, ${data.activities} subtarefas. ` +
+        `Ignoradas: ${data.skipped_stories_without_epic} histórias sem épico e ${data.skipped_tasks_without_project} subtarefas sem história. ` +
+        `Pai das histórias: ${formatCounts(data.parent_types?.stories)}. Pai das subtarefas: ${formatCounts(data.parent_types?.tasks)}.`,
     );
     router.refresh();
   }

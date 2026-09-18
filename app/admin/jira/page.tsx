@@ -105,8 +105,9 @@ export default async function AdminJiraPage() {
               </tbody>
             </table>
             <p className="mt-3 text-xs text-slate-400">
-              Padrão: Épico → Frente, História → Projeto, Tarefa → Atividade. Ajuste diretamente na tabela
-              issue_type_mapping caso seu time use nomenclaturas diferentes.
+              Padrão: Épico → Frente, História → Projeto, Tarefa → Atividade. Nesta conexão, Atividade =
+              subtarefas (subTaskIssueTypes() significa todos os tipos de subtarefa do Jira). Ajuste diretamente
+              na tabela issue_type_mapping caso seu time use nomenclaturas diferentes.
             </p>
           </div>
         )}

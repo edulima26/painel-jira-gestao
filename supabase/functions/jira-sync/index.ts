@@ -71,6 +71,13 @@ function quoteJqlValue(value: string) {
   return `"${value.replace(/"/g, '\\"')}"`;
 }
 
+// Valores terminados em "()" (ex.: subTaskIssueTypes()) são funções JQL e não levam aspas.
+function issueTypeClause(types: string[]) {
+  const isFunction = (type: string) => type.endsWith("()");
+  if (types.length === 1 && isFunction(types[0])) return `issuetype in ${types[0]}`;
+  return `issuetype in (${types.map((type) => (isFunction(type) ? type : quoteJqlValue(type))).join(",")})`;
+}
+
 function countByParentType(issues: JiraIssue[]) {
   const counts: Record<string, number> = {};
   for (const issue of issues) {
@@ -170,9 +177,9 @@ Deno.serve(async (req: Request) => {
     const projectScope = projectName ? `project = ${quoteJqlValue(projectName)} AND ` : "";
 
     const [epicIssues, storyIssues, taskIssues] = await Promise.all([
-      jiraSearch(connection.site_url, authHeader, `${projectScope}issuetype in (${epicTypes.map(quoteJqlValue).join(",")})`, fields),
-      jiraSearch(connection.site_url, authHeader, `${projectScope}issuetype in (${storyTypes.map(quoteJqlValue).join(",")})`, fields),
-      jiraSearch(connection.site_url, authHeader, `${projectScope}issuetype in (${taskTypes.map(quoteJqlValue).join(",")})`, fields),
+      jiraSearch(connection.site_url, authHeader, `${projectScope}${issueTypeClause(epicTypes)}`, fields),
+      jiraSearch(connection.site_url, authHeader, `${projectScope}${issueTypeClause(storyTypes)}`, fields),
+      jiraSearch(connection.site_url, authHeader, `${projectScope}${issueTypeClause(taskTypes)}`, fields),
     ]);
 
     const { data: profiles } = await serviceClient.from("profiles").select("id, email");
