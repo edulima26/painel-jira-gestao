@@ -12,13 +12,20 @@ interface JiraIssue {
   key: string;
   fields: {
     summary: string;
+    issuetype?: { name?: string; hierarchyLevel?: number; subtask?: boolean };
     status?: { name?: string; statusCategory?: { key?: string } };
     assignee?: { emailAddress?: string; displayName?: string } | null;
     parent?: { id?: string; key?: string; fields?: { issuetype?: { name?: string } } } | null;
     duedate?: string | null;
     updated?: string | null;
-    description?: string | null;
+    // campos personalizados (customfield_XXXXX) chegam por id
+    [key: string]: unknown;
   };
+}
+
+interface JiraFieldDef {
+  id: string;
+  name: string;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -76,6 +83,67 @@ function issueTypeClause(types: string[]) {
   const isFunction = (type: string) => type.endsWith("()");
   if (types.length === 1 && isFunction(types[0])) return `issuetype in ${types[0]}`;
   return `issuetype in (${types.map((type) => (isFunction(type) ? type : quoteJqlValue(type))).join(",")})`;
+}
+
+function normalizeName(value: string) {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+
+// Resolve ids de campos personalizados pelo nome (ex.: "Trimestre" -> customfield_10050).
+async function findFieldsByName(
+  siteUrl: string,
+  authHeader: string,
+  targets: string[],
+): Promise<Record<string, JiraFieldDef[]>> {
+  const res = await fetch(`${siteUrl}/rest/api/3/field`, {
+    headers: { Authorization: authHeader, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Jira /field falhou (status ${res.status}).`);
+  const all: JiraFieldDef[] = await res.json();
+
+  const result: Record<string, JiraFieldDef[]> = {};
+  for (const target of targets) {
+    const exact = all.filter((f) => normalizeName(f.name) === target);
+    const partial = all.filter((f) => normalizeName(f.name).includes(target));
+    result[target] = (exact.length > 0 ? exact : partial).map((f) => ({ id: f.id, name: f.name }));
+  }
+  return result;
+}
+
+// Converte o valor de um campo do Jira (texto, lista de opções, select, etc.) em texto simples.
+function fieldText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map(fieldText).filter((part): part is string => part !== null);
+    return parts.length > 0 ? parts.join(", ") : null;
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const main = fieldText(obj.value ?? obj.name ?? obj.displayName ?? obj.title ?? null);
+    const child = fieldText(obj.child ?? null);
+    if (main && child) return `${main} / ${child}`;
+    return main;
+  }
+  return null;
+}
+
+function pickFieldText(issue: JiraIssue, ids: string[]) {
+  for (const id of ids) {
+    const text = fieldText(issue.fields[id]);
+    if (text) return text;
+  }
+  return null;
+}
+
+function countByIssueType(issues: JiraIssue[]) {
+  const counts: Record<string, number> = {};
+  for (const issue of issues) {
+    const label = issue.fields.issuetype?.name ?? "desconhecido";
+    counts[label] = (counts[label] ?? 0) + 1;
+  }
+  return counts;
 }
 
 function countByParentType(issues: JiraIssue[]) {
@@ -166,7 +234,33 @@ Deno.serve(async (req: Request) => {
     const taskTypes = typesFor("atividade");
 
     const authHeader = `Basic ${btoa(`${connection.account_email}:${connection.api_token}`)}`;
-    const fields = ["summary", "status", "assignee", "parent", "duedate", "updated"];
+
+    // Campos "Trimestre" e "Planejamento inicial": ids resolvidos pelo nome. Se a busca de campos
+    // falhar, a sincronização principal segue sem eles e o erro fica registrado no resumo.
+    let quarterFields: JiraFieldDef[] = [];
+    let planningFields: JiraFieldDef[] = [];
+    let customFieldsError: string | null = null;
+    try {
+      const found = await findFieldsByName(connection.site_url, authHeader, ["trimestre", "planejamento inicial"]);
+      quarterFields = found["trimestre"];
+      planningFields = found["planejamento inicial"];
+    } catch (error) {
+      customFieldsError = error instanceof Error ? error.message : "Falha ao buscar campos personalizados.";
+    }
+    const quarterIds = quarterFields.map((f) => f.id);
+    const planningIds = planningFields.map((f) => f.id);
+
+    const fields = [
+      "summary",
+      "issuetype",
+      "status",
+      "assignee",
+      "parent",
+      "duedate",
+      "updated",
+      ...quarterIds,
+      ...planningIds,
+    ];
 
     const { data: scopeRow } = await serviceClient
       .from("jira_connections")
@@ -196,6 +290,11 @@ Deno.serve(async (req: Request) => {
         assignee_profile_id: assigneeEmail ? profileByEmail.get(assigneeEmail) ?? null : null,
         jira_assignee_email: issue.fields.assignee?.emailAddress ?? null,
         jira_assignee_name: issue.fields.assignee?.displayName ?? null,
+        status: issue.fields.status?.name ?? null,
+        status_category: issue.fields.status?.statusCategory?.key ?? null,
+        due_date: issue.fields.duedate ?? null,
+        quarter_label: pickFieldText(issue, quarterIds),
+        initial_planning: pickFieldText(issue, planningIds),
         jira_updated_at: issue.fields.updated ?? null,
       };
     });
@@ -210,9 +309,11 @@ Deno.serve(async (req: Request) => {
       workFrontIdByJiraId = new Map((upsertedFronts ?? []).map((r) => [r.jira_issue_id, r.id]));
     }
 
-    // 2) Projetos (Histórias)
+    // 2) Projetos (segundo nível: histórias, tarefas etc.). Épicos (hierarchyLevel 1) nunca são projetos,
+    // mesmo quando o mapeamento usa uma função como standardIssueTypes().
     let skippedStories = 0;
-    const projectRows = storyIssues
+    const projectCandidates = storyIssues.filter((issue) => issue.fields.issuetype?.hierarchyLevel !== 1);
+    const projectRows = projectCandidates
       .map((issue) => {
         const parentId = issue.fields.parent?.id;
         const workFrontId = parentId ? workFrontIdByJiraId.get(parentId) : undefined;
@@ -230,7 +331,10 @@ Deno.serve(async (req: Request) => {
           jira_assignee_email: issue.fields.assignee?.emailAddress ?? null,
           jira_assignee_name: issue.fields.assignee?.displayName ?? null,
           status: issue.fields.status?.name ?? null,
+          status_category: issue.fields.status?.statusCategory?.key ?? null,
           due_date: issue.fields.duedate ?? null,
+          quarter_label: pickFieldText(issue, quarterIds),
+          initial_planning: pickFieldText(issue, planningIds),
           jira_updated_at: issue.fields.updated ?? null,
         };
       })
@@ -281,9 +385,34 @@ Deno.serve(async (req: Request) => {
 
     const itemsSynced = workFrontRows.length + projectRows.length + activityRows.length;
 
+    const countPopulated = (issues: JiraIssue[], ids: string[]) =>
+      issues.filter((issue) => pickFieldText(issue, ids) !== null).length;
+
+    const summary = {
+      synced_at: new Date().toISOString(),
+      fetched: { epics: epicIssues.length, stories: storyIssues.length, tasks: taskIssues.length },
+      linked: { work_fronts: workFrontRows.length, projects: projectRows.length, activities: activityRows.length },
+      skipped: { stories_without_epic: skippedStories, subtasks_without_project: skippedTasks },
+      story_types: countByIssueType(projectCandidates),
+      parent_types: { stories: countByParentType(projectCandidates), tasks: countByParentType(taskIssues) },
+      custom_fields: { quarter: quarterFields, initial_planning: planningFields, error: customFieldsError },
+      populated: {
+        epics_quarter: countPopulated(epicIssues, quarterIds),
+        epics_initial_planning: countPopulated(epicIssues, planningIds),
+        stories_quarter: countPopulated(projectCandidates, quarterIds),
+        stories_initial_planning: countPopulated(projectCandidates, planningIds),
+      },
+    };
+
     await serviceClient
       .from("jira_connections")
-      .update({ last_sync_at: new Date().toISOString(), last_sync_status: "success", last_sync_error: null })
+      .update({
+        last_sync_at: new Date().toISOString(),
+        last_sync_status: "success",
+        last_sync_error: null,
+        custom_fields: { quarter: quarterFields, initial_planning: planningFields },
+        last_sync_summary: summary,
+      })
       .eq("id", connection.id);
 
     await serviceClient
@@ -299,8 +428,8 @@ Deno.serve(async (req: Request) => {
       activities: activityRows.length,
       skipped_stories_without_epic: skippedStories,
       skipped_tasks_without_project: skippedTasks,
-      fetched: { epics: epicIssues.length, stories: storyIssues.length, tasks: taskIssues.length },
-      parent_types: { stories: countByParentType(storyIssues), tasks: countByParentType(taskIssues) },
+      fetched: summary.fetched,
+      parent_types: summary.parent_types,
     });
   } catch (error) {
     console.error("jira-sync error", error);

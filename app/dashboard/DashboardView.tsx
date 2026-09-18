@@ -1,179 +1,185 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import ProgressBar from "@/components/ProgressBar";
+import {
+  FRONT_HEALTH_RANK,
+  QUARTERS,
+  buildQuality,
+  buildQuarterRows,
+  summarizeFront,
+  summarizeWithoutQuarter,
+  type FrontInput,
+  type Project,
+  type Quarter,
+} from "@/lib/overview";
+import DataQualityPanel from "./DataQualityPanel";
+import FrontCards from "./FrontCards";
+import KpiRow from "./KpiRow";
+import ProjectGroups from "./ProjectGroups";
+import QuarterPanel from "./QuarterPanel";
 
-export interface DashboardRow {
-  projectId: string;
-  projectKey: string;
-  projectName: string;
-  workFrontId: string;
-  workFrontName: string;
-  workFrontAssignee: string | null;
-  assigneeName: string;
-  status: string;
-  dueDate: string | null;
-  completionPct: number;
-  totalActivities: number;
-  doneActivities: number;
-  derivedStatus: "concluido" | "atrasado" | "em_dia";
-  isStalled: boolean;
+const NO_OWNER = "Sem responsável";
+
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "ativos", label: "Todos (exceto cancelados)" },
+  { value: "atrasado", label: "Atrasado" },
+  { value: "parado", label: "Parado" },
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "nao_iniciado", label: "Não iniciado" },
+  { value: "concluido", label: "Concluído" },
+  { value: "cancelado", label: "Cancelado" },
+];
+
+function matchesStatus(project: Project, status: string): boolean {
+  if (status === "ativos") return project.health !== "cancelado";
+  return project.health === status;
 }
 
-const statusLabels: Record<DashboardRow["derivedStatus"], string> = {
-  concluido: "Concluído",
-  atrasado: "Atrasado",
-  em_dia: "Em dia",
-};
+interface Props {
+  fronts: FrontInput[];
+  projects: Project[];
+  currentQuarter: Quarter;
+  today: string;
+}
 
-const statusColors: Record<DashboardRow["derivedStatus"], string> = {
-  concluido: "bg-emerald-100 text-emerald-700",
-  atrasado: "bg-red-100 text-red-700",
-  em_dia: "bg-blue-100 text-blue-700",
-};
-
-export default function DashboardView({
-  rows,
-  fronts,
-}: {
-  rows: DashboardRow[];
-  fronts: { id: string; name: string }[];
-}) {
+export default function DashboardView({ fronts, projects, currentQuarter, today }: Props) {
+  const [quarterFilter, setQuarterFilter] = useState("todos");
   const [frontFilter, setFrontFilter] = useState("todas");
-  const [assigneeFilter, setAssigneeFilter] = useState("todos");
-  const [statusFilter, setStatusFilter] = useState("todos");
+  const [ownerFilter, setOwnerFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("ativos");
 
-  const assignees = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.assigneeName))).sort(),
-    [rows],
+  const owners = useMemo(
+    () => Array.from(new Set(projects.map((project) => project.owner ?? NO_OWNER))).sort((a, b) => a.localeCompare(b)),
+    [projects],
   );
 
-  const filtered = rows.filter((r) => {
-    if (frontFilter !== "todas" && r.workFrontId !== frontFilter) return false;
-    if (assigneeFilter !== "todos" && r.assigneeName !== assigneeFilter) return false;
-    if (statusFilter !== "todos" && r.derivedStatus !== statusFilter) return false;
-    return true;
-  });
+  // Frente e analista valem para tudo; a tabela por trimestre ignora os filtros de trimestre e status.
+  const scopedProjects = useMemo(
+    () =>
+      projects.filter(
+        (project) =>
+          (frontFilter === "todas" || project.frontId === frontFilter) &&
+          (ownerFilter === "todos" || (project.owner ?? NO_OWNER) === ownerFilter),
+      ),
+    [projects, frontFilter, ownerFilter],
+  );
 
-  const frontSummaries = useMemo(() => {
-    const map = new Map<string, { name: string; assignee: string | null; total: number; done: number }>();
-    for (const r of rows) {
-      const entry = map.get(r.workFrontId) ?? { name: r.workFrontName, assignee: r.workFrontAssignee, total: 0, done: 0 };
-      entry.total += r.totalActivities;
-      entry.done += r.doneActivities;
-      map.set(r.workFrontId, entry);
-    }
-    return Array.from(map.entries()).map(([id, v]) => ({
-      id,
-      name: v.name,
-      assignee: v.assignee,
-      pct: v.total === 0 ? 0 : (100 * v.done) / v.total,
-    }));
-  }, [rows]);
+  const visibleProjects = useMemo(
+    () =>
+      scopedProjects.filter(
+        (project) =>
+          (quarterFilter === "todos" || String(project.quarter) === quarterFilter) &&
+          matchesStatus(project, statusFilter),
+      ),
+    [scopedProjects, quarterFilter, statusFilter],
+  );
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, DashboardRow[]>();
-    for (const r of filtered) {
-      const list = map.get(r.workFrontName) ?? [];
-      list.push(r);
-      map.set(r.workFrontName, list);
-    }
-    return Array.from(map.entries());
-  }, [filtered]);
+  const summaries = useMemo(() => {
+    const result = fronts
+      .map((front) =>
+        summarizeFront(
+          front,
+          visibleProjects.filter((project) => project.frontId === front.id),
+          today,
+        ),
+      )
+      .filter((summary) => summary.projects.length > 0);
+    result.sort(
+      (a, b) => FRONT_HEALTH_RANK[a.health] - FRONT_HEALTH_RANK[b.health] || a.front.name.localeCompare(b.front.name),
+    );
+    return result;
+  }, [fronts, visibleProjects, today]);
+
+  const quarterRows = useMemo(() => buildQuarterRows(scopedProjects), [scopedProjects]);
+  const withoutQuarter = useMemo(() => summarizeWithoutQuarter(scopedProjects), [scopedProjects]);
+  const quality = useMemo(() => buildQuality(scopedProjects), [scopedProjects]);
+
+  const hasFilters =
+    quarterFilter !== "todos" || frontFilter !== "todas" || ownerFilter !== "todos" || statusFilter !== "ativos";
+
+  function resetFilters() {
+    setQuarterFilter("todos");
+    setFrontFilter("todas");
+    setOwnerFilter("todos");
+    setStatusFilter("ativos");
+  }
+
+  if (projects.length === 0) {
+    return (
+      <div className="card text-sm text-slate-600">
+        Nenhum projeto sincronizado ainda. Peça ao administrador para executar a primeira sincronização em
+        “Conexão Jira”.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Comparativo entre frentes de trabalho
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {frontSummaries.map((f) => (
-            <div key={f.id} className="card">
-              <p className="text-sm font-medium text-slate-800">{f.name}</p>
-              <p className="mb-2 text-xs text-slate-500">Responsável: {f.assignee ?? "Sem responsável"}</p>
-              <ProgressBar pct={f.pct} />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="card flex flex-wrap gap-4">
+      <section className="card flex flex-wrap items-end gap-4">
         <div>
-          <label className="label">Frente de trabalho</label>
-          <select className="input" value={frontFilter} onChange={(e) => setFrontFilter(e.target.value)}>
+          <label className="label" htmlFor="filter-quarter">Trimestre</label>
+          <select id="filter-quarter" className="input" value={quarterFilter} onChange={(e) => setQuarterFilter(e.target.value)}>
+            <option value="todos">Ano todo</option>
+            {QUARTERS.map((quarter) => (
+              <option key={quarter} value={String(quarter)}>
+                {quarter}º trimestre{quarter === currentQuarter ? " (atual)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="filter-front">Frente de trabalho</label>
+          <select id="filter-front" className="input" value={frontFilter} onChange={(e) => setFrontFilter(e.target.value)}>
             <option value="todas">Todas</option>
-            {fronts.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
+            {fronts.map((front) => (
+              <option key={front.id} value={front.id}>
+                {front.name}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="label">Analista responsável</label>
-          <select className="input" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
+          <label className="label" htmlFor="filter-owner">Analista responsável</label>
+          <select id="filter-owner" className="input" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
             <option value="todos">Todos</option>
-            {assignees.map((a) => (
-              <option key={a} value={a}>{a}</option>
+            {owners.map((owner) => (
+              <option key={owner} value={owner}>
+                {owner}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="label">Status</label>
-          <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="todos">Todos</option>
-            <option value="em_dia">Em dia</option>
-            <option value="atrasado">Atrasado</option>
-            <option value="concluido">Concluído</option>
+          <label className="label" htmlFor="filter-status">Status</label>
+          <select id="filter-status" className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
+        {hasFilters ? (
+          <button type="button" className="btn-secondary" onClick={resetFilters}>
+            Limpar filtros
+          </button>
+        ) : null}
       </section>
 
-      <section className="space-y-6">
-        {grouped.length === 0 && (
-          <p className="text-sm text-slate-500">Nenhum projeto encontrado para os filtros selecionados.</p>
-        )}
-        {grouped.map(([frontName, projectRows]) => (
-          <div key={frontName}>
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">
-              {frontName}
-              <span className="ml-2 font-normal text-slate-400">
-                · Responsável: {projectRows[0]?.workFrontAssignee ?? "Sem responsável"}
-              </span>
-            </h3>
-            <div className="card divide-y divide-slate-100 p-0">
-              {projectRows.map((r) => (
-                <div key={r.projectId} className="grid grid-cols-12 items-center gap-3 px-5 py-3">
-                  <div className="col-span-4">
-                    <p className="text-sm font-medium text-slate-900">
-                      {r.projectName} <span className="text-xs text-slate-400">({r.projectKey})</span>
-                    </p>
-                    <p className="text-xs text-slate-500">{r.assigneeName}</p>
-                  </div>
-                  <div className="col-span-3">
-                    <ProgressBar pct={r.completionPct} />
-                    <p className="mt-1 text-xs text-slate-400">
-                      {r.doneActivities}/{r.totalActivities} tarefas concluídas
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[r.derivedStatus]}`}>
-                      {statusLabels[r.derivedStatus]}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-xs text-slate-500">
-                    {r.dueDate ? `Prazo: ${new Date(r.dueDate).toLocaleDateString("pt-BR")}` : "Sem prazo definido"}
-                  </div>
-                  <div className="col-span-1 text-right">
-                    {r.isStalled && (
-                      <span title="Sem atividade concluída recentemente" className="text-lg">⚠️</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
+      <KpiRow projects={visibleProjects} />
+
+      <QuarterPanel rows={quarterRows} withoutQuarter={withoutQuarter} currentQuarter={currentQuarter} />
+
+      {summaries.length === 0 ? (
+        <p className="text-sm text-slate-500">Nenhum projeto encontrado para os filtros selecionados.</p>
+      ) : (
+        <>
+          <FrontCards summaries={summaries} />
+          <ProjectGroups summaries={summaries} defaultOpen={summaries.length === 1} />
+        </>
+      )}
+
+      <DataQualityPanel items={quality} />
     </div>
   );
 }

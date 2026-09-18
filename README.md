@@ -10,11 +10,24 @@ pessoal do analista.
   autenticação, e duas Edge Functions:
   - `save-jira-connection`: valida e salva a conexão com o Jira (token criptografado no banco via
     `pgcrypto`, chave guardada no Supabase Vault — nunca em texto puro).
-  - `jira-sync`: sincroniza Épicos → Frentes, Histórias → Projetos, Tarefas → Atividades. Pode ser
-    disparada manualmente (botão no admin) ou automaticamente via `pg_cron` a cada 5 minutos
-    (respeitando o intervalo configurável por conexão).
-- Views `project_completion` e `work_front_completion` calculam o % de conclusão diretamente no
-  banco.
+  - `jira-sync`: sincroniza Épicos → Frentes, Histórias (qualquer tipo padrão do 2º nível) →
+    Projetos, Subtarefas → Atividades, além dos campos "Trimestre" e "Planejamento Inicial" (ids
+    resolvidos pelo nome). Pode ser disparada manualmente (botão no admin) ou automaticamente via
+    `pg_cron` a cada 5 minutos (respeitando o intervalo configurável por conexão). O resumo da
+    última execução fica em `jira_connections.last_sync_summary`.
+- A view `project_completion` calcula o % de conclusão de cada projeto no banco.
+
+## Regras da Visão geral
+
+- **Entregue** = status com categoria "concluído" no Jira, exceto "Cancelado" (cancelados ficam fora
+  de todos os percentuais e aparecem à parte).
+- **% do projeto** = 100% se entregue; senão subtarefas concluídas ÷ total; sem subtarefas = 0%.
+- **% da frente** = média dos % dos projetos ponderada pelo nº de subtarefas (mínimo 1).
+- **Atrasado** = prazo vencido e não entregue. **Parado** = em andamento sem atualização há mais de
+  14 dias. **Não iniciado** = categoria "a fazer" no Jira.
+- **Planejado x entregue por trimestre**: usa o campo Trimestre e o Planejamento Inicial ("Sim" =
+  planejado; "Não" = adicionado ao longo do ano) das histórias. O trimestre não tem ano no Jira;
+  assume-se o ano corrente.
 
 ## Rodando localmente
 
