@@ -48,10 +48,11 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
   const [ownerFilter, setOwnerFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("ativos");
 
-  const owners = useMemo(
-    () => Array.from(new Set(projects.map((project) => project.owner ?? NO_OWNER))).sort((a, b) => a.localeCompare(b)),
-    [projects],
-  );
+  // Com uma frente selecionada, só aparecem analistas que são responsáveis por projetos dessa frente.
+  const owners = useMemo(() => {
+    const inScope = frontFilter === "todas" ? projects : projects.filter((project) => project.frontId === frontFilter);
+    return Array.from(new Set(inScope.map((project) => project.owner ?? NO_OWNER))).sort((a, b) => a.localeCompare(b));
+  }, [projects, frontFilter]);
 
   // Frente e analista valem para tudo; a tabela por trimestre ignora os filtros de trimestre e status.
   const scopedProjects = useMemo(
@@ -97,6 +98,15 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
   const hasFilters =
     quarterFilter !== "todos" || frontFilter !== "todas" || ownerFilter !== "todos" || statusFilter !== "ativos";
 
+  function handleFrontChange(frontId: string) {
+    setFrontFilter(frontId);
+    if (frontId === "todas" || ownerFilter === "todos") return;
+    const ownerStillListed = projects.some(
+      (project) => project.frontId === frontId && (project.owner ?? NO_OWNER) === ownerFilter,
+    );
+    if (!ownerStillListed) setOwnerFilter("todos");
+  }
+
   function resetFilters() {
     setQuarterFilter("todos");
     setFrontFilter("todas");
@@ -129,7 +139,7 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
         </div>
         <div>
           <label className="label" htmlFor="filter-front">Frente de trabalho</label>
-          <select id="filter-front" className="input" value={frontFilter} onChange={(e) => setFrontFilter(e.target.value)}>
+          <select id="filter-front" className="input" value={frontFilter} onChange={(e) => handleFrontChange(e.target.value)}>
             <option value="todas">Todas</option>
             {fronts.map((front) => (
               <option key={front.id} value={front.id}>
