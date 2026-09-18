@@ -5,9 +5,20 @@ import { useRouter } from "next/navigation";
 import { invokeEdgeFunction } from "@/lib/supabase/functions";
 
 interface SyncResult {
-  items_synced: number;
-  skipped: boolean;
+  skipped?: boolean;
   reason?: string;
+  work_fronts: number;
+  projects: number;
+  activities: number;
+  skipped_stories_without_epic: number;
+  skipped_tasks_without_project: number;
+  parent_types?: { stories: Record<string, number>; tasks: Record<string, number> };
+}
+
+function formatCounts(counts?: Record<string, number>) {
+  const entries = Object.entries(counts ?? {});
+  if (entries.length === 0) return "nenhuma";
+  return entries.map(([label, total]) => `${label}: ${total}`).join(", ");
 }
 
 export default function SyncButton() {
@@ -28,16 +39,30 @@ export default function SyncButton() {
       return;
     }
 
-    setMessage(data?.skipped ? (data.reason ?? "Sincronização ainda não necessária.") : `Sincronizado: ${data?.items_synced ?? 0} itens.`);
+    if (!data) {
+      setMessage("Resposta vazia do servidor.");
+      return;
+    }
+
+    if (data.skipped) {
+      setMessage(data.reason ?? "Sincronização ainda não necessária.");
+      return;
+    }
+
+    setMessage(
+      `Sincronizado: ${data.work_fronts} épicos, ${data.projects} histórias, ${data.activities} tarefas. ` +
+        `Ignoradas: ${data.skipped_stories_without_epic} histórias sem épico e ${data.skipped_tasks_without_project} tarefas sem história. ` +
+        `Pai das histórias: ${formatCounts(data.parent_types?.stories)}. Pai das tarefas: ${formatCounts(data.parent_types?.tasks)}.`,
+    );
     router.refresh();
   }
 
   return (
-    <div className="flex items-center gap-3">
-      {message && <span className="text-xs text-slate-500">{message}</span>}
+    <div className="flex flex-col items-end gap-2">
       <button onClick={handleSync} disabled={loading} className="btn-secondary">
         {loading ? "Sincronizando..." : "Sincronizar agora"}
       </button>
+      {message && <p className="max-w-md text-right text-xs text-slate-500">{message}</p>}
     </div>
   );
 }

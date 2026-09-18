@@ -41,6 +41,13 @@ Acesse `http://localhost:3000`.
 A partir daí, a sincronização automática roda a cada 5 minutos (respeitando o intervalo mínimo
 configurado, padrão 15 minutos).
 
+## Escopo do Jira
+
+A sincronização traz só o projeto configurado em `jira_connections.jira_project` (hoje:
+"Canais Digitais e Processos", nome ou chave do projeto no Jira). Deixar a coluna vazia sincroniza
+todos os projetos. Ao trocar o projeto, apague os dados antigos (`delete from work_fronts;` — os
+projetos e atividades caem em cascata) e sincronize de novo.
+
 ## Vínculo analista ↔ Jira
 
 O e-mail de cadastro na plataforma precisa ser o mesmo cadastrado como responsável (assignee) no

@@ -9,6 +9,7 @@ export interface DashboardRow {
   projectName: string;
   workFrontId: string;
   workFrontName: string;
+  workFrontAssignee: string | null;
   assigneeName: string;
   status: string;
   dueDate: string | null;
@@ -55,9 +56,9 @@ export default function DashboardView({
   });
 
   const frontSummaries = useMemo(() => {
-    const map = new Map<string, { name: string; total: number; done: number }>();
+    const map = new Map<string, { name: string; assignee: string | null; total: number; done: number }>();
     for (const r of rows) {
-      const entry = map.get(r.workFrontId) ?? { name: r.workFrontName, total: 0, done: 0 };
+      const entry = map.get(r.workFrontId) ?? { name: r.workFrontName, assignee: r.workFrontAssignee, total: 0, done: 0 };
       entry.total += r.totalActivities;
       entry.done += r.doneActivities;
       map.set(r.workFrontId, entry);
@@ -65,6 +66,7 @@ export default function DashboardView({
     return Array.from(map.entries()).map(([id, v]) => ({
       id,
       name: v.name,
+      assignee: v.assignee,
       pct: v.total === 0 ? 0 : (100 * v.done) / v.total,
     }));
   }, [rows]);
@@ -88,7 +90,8 @@ export default function DashboardView({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {frontSummaries.map((f) => (
             <div key={f.id} className="card">
-              <p className="mb-2 text-sm font-medium text-slate-800">{f.name}</p>
+              <p className="text-sm font-medium text-slate-800">{f.name}</p>
+              <p className="mb-2 text-xs text-slate-500">Responsável: {f.assignee ?? "Sem responsável"}</p>
               <ProgressBar pct={f.pct} />
             </div>
           ))}
@@ -131,7 +134,12 @@ export default function DashboardView({
         )}
         {grouped.map(([frontName, projectRows]) => (
           <div key={frontName}>
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">{frontName}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-700">
+              {frontName}
+              <span className="ml-2 font-normal text-slate-400">
+                · Responsável: {projectRows[0]?.workFrontAssignee ?? "Sem responsável"}
+              </span>
+            </h3>
             <div className="card divide-y divide-slate-100 p-0">
               {projectRows.map((r) => (
                 <div key={r.projectId} className="grid grid-cols-12 items-center gap-3 px-5 py-3">

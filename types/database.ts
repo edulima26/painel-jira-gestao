@@ -13,6 +13,9 @@ export interface WorkFront {
   jira_key: string;
   name: string;
   description: string | null;
+  assignee_profile_id: string | null;
+  jira_assignee_name: string | null;
+  jira_assignee_email: string | null;
 }
 
 export interface Project {

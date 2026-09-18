@@ -8,7 +8,7 @@ export default async function AdminJiraPage() {
 
   const { data: connection } = await supabase
     .from("jira_connections")
-    .select("id, site_url, account_email, sync_interval_minutes, last_sync_at, last_sync_status, last_sync_error")
+    .select("id, site_url, account_email, jira_project, sync_interval_minutes, last_sync_at, last_sync_status, last_sync_error")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -44,11 +44,13 @@ export default async function AdminJiraPage() {
 
         {connection && (
           <div className="card mb-6">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-start justify-between gap-4">
               <h2 className="text-sm font-semibold text-slate-700">Status da sincronização</h2>
               <SyncButton />
             </div>
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-slate-500">Projeto do Jira</dt>
+              <dd className="text-slate-800">{connection.jira_project ?? "Todos os projetos"}</dd>
               <dt className="text-slate-500">Última sincronização</dt>
               <dd className="text-slate-800">
                 {connection.last_sync_at ? new Date(connection.last_sync_at).toLocaleString("pt-BR") : "Nunca"}

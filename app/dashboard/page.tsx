@@ -8,7 +8,7 @@ export default async function DashboardPage() {
   const supabase = createClient();
 
   const [{ data: fronts }, { data: projects }, { data: completion }] = await Promise.all([
-    supabase.from("work_fronts").select("id, jira_key, name"),
+    supabase.from("work_fronts").select("id, jira_key, name, jira_assignee_name, profiles:assignee_profile_id(full_name)"),
     supabase
       .from("projects")
       .select("id, work_front_id, jira_key, name, jira_assignee_name, status, due_date, profiles:assignee_profile_id(full_name)"),
@@ -24,6 +24,9 @@ export default async function DashboardPage() {
     const c = completionByProject.get(p.id);
     const pct = c?.completion_pct ?? 0;
     const front = frontById.get(p.work_front_id);
+    const workFrontAssignee = front
+      ? (front.profiles as unknown as { full_name: string | null } | null)?.full_name || front.jira_assignee_name || null
+      : null;
     const assigneeName = (p.profiles as unknown as { full_name: string | null } | null)?.full_name || p.jira_assignee_name || "Sem responsável";
 
     const isDone = pct >= 100;
@@ -39,6 +42,7 @@ export default async function DashboardPage() {
       projectName: p.name,
       workFrontId: p.work_front_id,
       workFrontName: front?.name ?? "—",
+      workFrontAssignee,
       assigneeName,
       status: p.status ?? "—",
       dueDate: p.due_date,

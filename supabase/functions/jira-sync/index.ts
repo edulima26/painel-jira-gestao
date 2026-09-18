@@ -14,7 +14,7 @@ interface JiraIssue {
     summary: string;
     status?: { name?: string; statusCategory?: { key?: string } };
     assignee?: { emailAddress?: string; displayName?: string } | null;
-    parent?: { id?: string; key?: string } | null;
+    parent?: { id?: string; key?: string; fields?: { issuetype?: { name?: string } } } | null;
     duedate?: string | null;
     updated?: string | null;
     description?: string | null;
@@ -69,6 +69,16 @@ async function jiraSearch(
 
 function quoteJqlValue(value: string) {
   return `"${value.replace(/"/g, '\\"')}"`;
+}
+
+function countByParentType(issues: JiraIssue[]) {
+  const counts: Record<string, number> = {};
+  for (const issue of issues) {
+    const parent = issue.fields.parent;
+    const label = parent ? (parent.fields?.issuetype?.name ?? "tipo desconhecido") : "sem pai";
+    counts[label] = (counts[label] ?? 0) + 1;
+  }
+  return counts;
 }
 
 Deno.serve(async (req: Request) => {
@@ -151,23 +161,37 @@ Deno.serve(async (req: Request) => {
     const authHeader = `Basic ${btoa(`${connection.account_email}:${connection.api_token}`)}`;
     const fields = ["summary", "status", "assignee", "parent", "duedate", "updated"];
 
+    const { data: scopeRow } = await serviceClient
+      .from("jira_connections")
+      .select("jira_project")
+      .eq("id", connection.id)
+      .single();
+    const projectName = scopeRow?.jira_project?.trim();
+    const projectScope = projectName ? `project = ${quoteJqlValue(projectName)} AND ` : "";
+
     const [epicIssues, storyIssues, taskIssues] = await Promise.all([
-      jiraSearch(connection.site_url, authHeader, `issuetype in (${epicTypes.map(quoteJqlValue).join(",")})`, fields),
-      jiraSearch(connection.site_url, authHeader, `issuetype in (${storyTypes.map(quoteJqlValue).join(",")})`, fields),
-      jiraSearch(connection.site_url, authHeader, `issuetype in (${taskTypes.map(quoteJqlValue).join(",")})`, fields),
+      jiraSearch(connection.site_url, authHeader, `${projectScope}issuetype in (${epicTypes.map(quoteJqlValue).join(",")})`, fields),
+      jiraSearch(connection.site_url, authHeader, `${projectScope}issuetype in (${storyTypes.map(quoteJqlValue).join(",")})`, fields),
+      jiraSearch(connection.site_url, authHeader, `${projectScope}issuetype in (${taskTypes.map(quoteJqlValue).join(",")})`, fields),
     ]);
 
     const { data: profiles } = await serviceClient.from("profiles").select("id, email");
     const profileByEmail = new Map((profiles ?? []).map((p) => [p.email.toLowerCase(), p.id]));
 
     // 1) Frentes de trabalho (Épicos)
-    const workFrontRows = epicIssues.map((issue) => ({
-      jira_connection_id: connection.id,
-      jira_issue_id: issue.id,
-      jira_key: issue.key,
-      name: issue.fields.summary,
-      jira_updated_at: issue.fields.updated ?? null,
-    }));
+    const workFrontRows = epicIssues.map((issue) => {
+      const assigneeEmail = issue.fields.assignee?.emailAddress?.toLowerCase();
+      return {
+        jira_connection_id: connection.id,
+        jira_issue_id: issue.id,
+        jira_key: issue.key,
+        name: issue.fields.summary,
+        assignee_profile_id: assigneeEmail ? profileByEmail.get(assigneeEmail) ?? null : null,
+        jira_assignee_email: issue.fields.assignee?.emailAddress ?? null,
+        jira_assignee_name: issue.fields.assignee?.displayName ?? null,
+        jira_updated_at: issue.fields.updated ?? null,
+      };
+    });
 
     let workFrontIdByJiraId = new Map<string, string>();
     if (workFrontRows.length > 0) {
@@ -268,6 +292,8 @@ Deno.serve(async (req: Request) => {
       activities: activityRows.length,
       skipped_stories_without_epic: skippedStories,
       skipped_tasks_without_project: skippedTasks,
+      fetched: { epics: epicIssues.length, stories: storyIssues.length, tasks: taskIssues.length },
+      parent_types: { stories: countByParentType(storyIssues), tasks: countByParentType(taskIssues) },
     });
   } catch (error) {
     console.error("jira-sync error", error);
