@@ -164,6 +164,39 @@ export function weightedPct(projects: Project[]): number {
   return weightSum === 0 ? 0 : valueSum / weightSum;
 }
 
+export interface StatusCount {
+  status: string;
+  category: string | null;
+  count: number;
+  isCancelled: boolean;
+}
+
+const JIRA_CATEGORY_ORDER: Partial<Record<string, number>> = { new: 0, indeterminate: 1, done: 2 };
+
+// Projetos agrupados pelo status cadastrado no Jira: "a fazer", depois "em andamento", depois
+// "concluído"; cancelados por último. Dentro de cada grupo, do mais numeroso para o menos.
+export function countByJiraStatus(projects: Project[]): StatusCount[] {
+  const byStatus = new Map<string, StatusCount>();
+  for (const project of projects) {
+    const status = project.jiraStatus ?? "Sem status";
+    const entry = byStatus.get(status);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      byStatus.set(status, { status, category: project.statusCategory, count: 1, isCancelled: project.isCancelled });
+    }
+  }
+
+  const rank = (item: StatusCount): number => {
+    if (item.isCancelled) return 4;
+    return JIRA_CATEGORY_ORDER[item.category ?? ""] ?? 3;
+  };
+
+  return Array.from(byStatus.values()).sort(
+    (a, b) => rank(a) - rank(b) || b.count - a.count || a.status.localeCompare(b.status),
+  );
+}
+
 export function ratio(numerator: number, denominator: number): number | null {
   return denominator === 0 ? null : (100 * numerator) / denominator;
 }

@@ -54,7 +54,8 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
     return Array.from(new Set(inScope.map((project) => project.owner ?? NO_OWNER))).sort((a, b) => a.localeCompare(b));
   }, [projects, frontFilter]);
 
-  // Frente e analista valem para tudo; a tabela por trimestre ignora os filtros de trimestre e status.
+  // Frente e analista valem para tudo. Os indicadores do topo ignoram o filtro de status (já são a divisão
+  // por status) e a tabela por trimestre ignora os filtros de trimestre e status.
   const scopedProjects = useMemo(
     () =>
       projects.filter(
@@ -65,14 +66,14 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
     [projects, frontFilter, ownerFilter],
   );
 
+  const kpiProjects = useMemo(
+    () => scopedProjects.filter((project) => quarterFilter === "todos" || String(project.quarter) === quarterFilter),
+    [scopedProjects, quarterFilter],
+  );
+
   const visibleProjects = useMemo(
-    () =>
-      scopedProjects.filter(
-        (project) =>
-          (quarterFilter === "todos" || String(project.quarter) === quarterFilter) &&
-          matchesStatus(project, statusFilter),
-      ),
-    [scopedProjects, quarterFilter, statusFilter],
+    () => kpiProjects.filter((project) => matchesStatus(project, statusFilter)),
+    [kpiProjects, statusFilter],
   );
 
   const summaries = useMemo(() => {
@@ -176,7 +177,7 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
         ) : null}
       </section>
 
-      <KpiRow projects={visibleProjects} />
+      <KpiRow projects={kpiProjects} />
 
       <QuarterPanel rows={quarterRows} withoutQuarter={withoutQuarter} currentQuarter={currentQuarter} />
 
