@@ -17,6 +17,15 @@ pessoal do analista.
     última execução fica em `jira_connections.last_sync_summary`.
 - A view `project_completion` calcula o % de conclusão de cada projeto no banco.
 
+## Abas
+
+- **Dashboard**: visão geral (indicadores por status do Jira, frentes e projetos).
+- **Trimestre**: um trimestre por vez (padrão: o atual) com entrega, planejados x adicionados, quebra
+  por frente e lista de projetos filtrável.
+- **Analistas**: uma linha por responsável (projetos por categoria de status do Jira, atrasados,
+  parados, % e subtarefas abertas atribuídas). "Sem responsável" reúne o que não tem dono.
+- **Meu Painel**: projetos e tarefas do próprio analista.
+
 ## Regras da Visão geral
 
 - **Entregue** = status com categoria "concluído" no Jira, exceto "Cancelado" (cancelados ficam fora

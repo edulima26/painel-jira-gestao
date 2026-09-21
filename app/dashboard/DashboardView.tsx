@@ -16,7 +16,7 @@ import DataQualityPanel from "./DataQualityPanel";
 import FrontCards from "./FrontCards";
 import KpiRow from "./KpiRow";
 import ProjectGroups from "./ProjectGroups";
-import QuarterPanel from "./QuarterPanel";
+import QuarterPanel from "@/components/overview/QuarterPanel";
 
 const NO_OWNER = "Sem responsável";
 

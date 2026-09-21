@@ -23,13 +23,15 @@ export default async function Navbar() {
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-6">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-2 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
           <Link href="/dashboard" className="text-base font-semibold text-slate-900">
             Painel de Projetos
           </Link>
-          <nav className="flex gap-4 text-sm">
+          <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">Dashboard</Link>
+            <Link href="/trimestre" className="text-slate-600 hover:text-slate-900">Trimestre</Link>
+            <Link href="/analistas" className="text-slate-600 hover:text-slate-900">Analistas</Link>
             <Link href="/meu-painel" className="text-slate-600 hover:text-slate-900">Meu Painel</Link>
             {role === "admin" && (
               <>

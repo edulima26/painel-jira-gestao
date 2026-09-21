@@ -109,7 +109,7 @@ export function formatDate(isoDate: string | null): string {
   return `${day}/${month}/${year}`;
 }
 
-function daysBetween(fromDate: string, toDate: string): number {
+export function daysBetween(fromDate: string, toDate: string): number {
   return Math.round((Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`)) / 86400000);
 }
 
@@ -248,8 +248,8 @@ export function summarizeFront(front: FrontInput, projects: Project[], today: st
   };
 }
 
-export interface QuarterRow {
-  quarter: Quarter;
+// Planejado = Planejamento Inicial "Sim"; adicionado = "Não"; sem marcação = campo vazio.
+export interface PlanDeliveryCounts {
   planned: number;
   plannedDelivered: number;
   added: number;
@@ -259,35 +259,88 @@ export interface QuarterRow {
   cancelled: number;
 }
 
-export function buildQuarterRows(projects: Project[]): QuarterRow[] {
-  return QUARTERS.map((quarter) => {
-    const row: QuarterRow = {
-      quarter,
-      planned: 0,
-      plannedDelivered: 0,
-      added: 0,
-      addedDelivered: 0,
-      unmarked: 0,
-      unmarkedDelivered: 0,
-      cancelled: 0,
-    };
-    for (const project of projects) {
-      if (project.quarter !== quarter) continue;
-      if (project.isCancelled) {
-        row.cancelled += 1;
-      } else if (project.planned === true) {
-        row.planned += 1;
-        if (project.isDelivered) row.plannedDelivered += 1;
-      } else if (project.planned === false) {
-        row.added += 1;
-        if (project.isDelivered) row.addedDelivered += 1;
-      } else {
-        row.unmarked += 1;
-        if (project.isDelivered) row.unmarkedDelivered += 1;
-      }
+export interface QuarterRow extends PlanDeliveryCounts {
+  quarter: Quarter;
+}
+
+export function countPlanDelivery(projects: Project[]): PlanDeliveryCounts {
+  const counts: PlanDeliveryCounts = {
+    planned: 0,
+    plannedDelivered: 0,
+    added: 0,
+    addedDelivered: 0,
+    unmarked: 0,
+    unmarkedDelivered: 0,
+    cancelled: 0,
+  };
+  for (const project of projects) {
+    if (project.isCancelled) {
+      counts.cancelled += 1;
+    } else if (project.planned === true) {
+      counts.planned += 1;
+      if (project.isDelivered) counts.plannedDelivered += 1;
+    } else if (project.planned === false) {
+      counts.added += 1;
+      if (project.isDelivered) counts.addedDelivered += 1;
+    } else {
+      counts.unmarked += 1;
+      if (project.isDelivered) counts.unmarkedDelivered += 1;
     }
-    return row;
-  });
+  }
+  return counts;
+}
+
+export function planDeliveryTotals(counts: PlanDeliveryCounts): { total: number; delivered: number } {
+  return {
+    total: counts.planned + counts.added + counts.unmarked,
+    delivered: counts.plannedDelivered + counts.addedDelivered + counts.unmarkedDelivered,
+  };
+}
+
+export function buildQuarterRows(projects: Project[]): QuarterRow[] {
+  return QUARTERS.map((quarter) => ({
+    quarter,
+    ...countPlanDelivery(projects.filter((project) => project.quarter === quarter)),
+  }));
+}
+
+export interface FrontPlanDelivery {
+  front: FrontInput;
+  counts: PlanDeliveryCounts;
+}
+
+// Planejado x entregue por frente, só para frentes que têm projetos nos projetos informados.
+export function buildFrontPlanDelivery(fronts: FrontInput[], projects: Project[]): FrontPlanDelivery[] {
+  const result: FrontPlanDelivery[] = [];
+  for (const front of fronts) {
+    const frontProjects = projects.filter((project) => project.frontId === front.id);
+    if (frontProjects.length === 0) continue;
+    result.push({ front, counts: countPlanDelivery(frontProjects) });
+  }
+  return result.sort(
+    (a, b) => planDeliveryTotals(b.counts).total - planDeliveryTotals(a.counts).total || a.front.name.localeCompare(b.front.name),
+  );
+}
+
+// Primeiro e último dia do trimestre ("YYYY-MM-DD").
+export function quarterRange(year: number, quarter: Quarter): { start: string; end: string } {
+  const startMonth = (quarter - 1) * 3 + 1;
+  const endMonth = startMonth + 2;
+  const lastDay = new Date(Date.UTC(year, endMonth, 0)).getUTCDate();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return { start: `${year}-${pad(startMonth)}-01`, end: `${year}-${pad(endMonth)}-${pad(lastDay)}` };
+}
+
+export type QuarterScope = "todos" | "planejados" | "adicionados" | "entregues" | "em_aberto" | "cancelados";
+
+export function matchesQuarterScope(project: Project, scope: QuarterScope): boolean {
+  if (scope === "cancelados") return project.isCancelled;
+  if (project.isCancelled) return false;
+  if (scope === "planejados") return project.planned === true;
+  if (scope === "adicionados") return project.planned === false;
+  if (scope === "entregues") return project.isDelivered;
+  if (scope === "em_aberto") return !project.isDelivered;
+  return true;
 }
 
 export function summarizeWithoutQuarter(projects: Project[]): { total: number; delivered: number } {
@@ -355,4 +408,107 @@ export function buildQuality(projects: Project[]): QualityItem[] {
   ];
 
   return items.filter((item) => item.count > 0);
+}
+
+export const NO_OWNER_LABEL = "Sem responsável";
+
+// Subtarefas agrupadas por analista (quem está atribuído à subtarefa) e projeto.
+export interface SubtaskRow {
+  analyst: string | null;
+  projectId: string;
+  total: number;
+  done: number;
+}
+
+export interface AnalystSummary {
+  name: string;
+  isUnassigned: boolean;
+  projects: Project[];
+  activeCount: number;
+  todo: number;
+  inProgress: number;
+  delivered: number;
+  late: number;
+  stalled: number;
+  pct: number;
+  openSubtasks: number;
+  subtaskProjects: { project: Project; open: number }[];
+  fronts: { frontId: string; count: number }[];
+}
+
+// Uma linha por analista: projetos pelos quais é responsável (por categoria de status do Jira) e subtarefas
+// abertas atribuídas a ele em projetos ainda abertos. "Sem responsável" reúne o que não tem dono.
+export function buildAnalystSummaries(projects: Project[], subtasks: SubtaskRow[]): AnalystSummary[] {
+  const projectById = new Map<string, Project>();
+  for (const project of projects) projectById.set(project.id, project);
+
+  const ownedByName = new Map<string, Project[]>();
+  for (const project of projects) {
+    if (project.isCancelled) continue;
+    const name = project.owner ?? NO_OWNER_LABEL;
+    const list = ownedByName.get(name);
+    if (list) list.push(project);
+    else ownedByName.set(name, [project]);
+  }
+
+  const openByName = new Map<string, { project: Project; open: number }[]>();
+  for (const row of subtasks) {
+    const project = projectById.get(row.projectId);
+    if (!project || project.isCancelled || project.isDelivered) continue;
+    const open = row.total - row.done;
+    if (open <= 0) continue;
+    const name = row.analyst ?? NO_OWNER_LABEL;
+    const list = openByName.get(name);
+    if (list) list.push({ project, open });
+    else openByName.set(name, [{ project, open }]);
+  }
+
+  const names = new Set<string>(Array.from(ownedByName.keys()).concat(Array.from(openByName.keys())));
+  const summaries: AnalystSummary[] = [];
+
+  for (const name of Array.from(names)) {
+    const owned = ownedByName.get(name) ?? [];
+    const openList = (openByName.get(name) ?? []).slice().sort((a, b) => b.open - a.open);
+
+    let todo = 0;
+    let inProgress = 0;
+    let delivered = 0;
+    let late = 0;
+    let stalled = 0;
+    const frontCounts = new Map<string, number>();
+    for (const project of owned) {
+      if (project.isDelivered) delivered += 1;
+      else if (project.statusCategory === "new") todo += 1;
+      else inProgress += 1;
+      if (project.health === "atrasado") late += 1;
+      if (project.health === "parado") stalled += 1;
+      frontCounts.set(project.frontId, (frontCounts.get(project.frontId) ?? 0) + 1);
+    }
+
+    summaries.push({
+      name,
+      isUnassigned: name === NO_OWNER_LABEL,
+      projects: owned,
+      activeCount: owned.length,
+      todo,
+      inProgress,
+      delivered,
+      late,
+      stalled,
+      pct: weightedPct(owned),
+      openSubtasks: openList.reduce((sum, item) => sum + item.open, 0),
+      subtaskProjects: openList,
+      fronts: Array.from(frontCounts.entries())
+        .map(([frontId, count]) => ({ frontId, count }))
+        .sort((a, b) => b.count - a.count),
+    });
+  }
+
+  return summaries.sort(
+    (a, b) =>
+      Number(a.isUnassigned) - Number(b.isUnassigned) ||
+      b.todo + b.inProgress - (a.todo + a.inProgress) ||
+      b.openSubtasks - a.openSubtasks ||
+      a.name.localeCompare(b.name),
+  );
 }

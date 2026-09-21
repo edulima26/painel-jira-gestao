@@ -1,4 +1,5 @@
 import ProgressBar from "@/components/ProgressBar";
+import Kpi from "@/components/overview/Kpi";
 import { STALE_DAYS, countByHealth, countByJiraStatus, weightedPct, type Project } from "@/lib/overview";
 
 const STATUS_TONE: Record<string, string> = {
@@ -6,16 +7,6 @@ const STATUS_TONE: Record<string, string> = {
   indeterminate: "text-blue-700",
   done: "text-emerald-700",
 };
-
-function Kpi({ label, value, hint, tone }: { label: string; value: number; hint: string; tone: string }) {
-  return (
-    <div className="card">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1 text-3xl font-semibold ${tone}`}>{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{hint}</p>
-    </div>
-  );
-}
 
 export default function KpiRow({ projects }: { projects: Project[] }) {
   const counts = countByHealth(projects);

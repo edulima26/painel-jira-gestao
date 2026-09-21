@@ -1,6 +1,6 @@
 import ProgressBar from "@/components/ProgressBar";
 import { HEALTH_LABELS, formatDate, type FrontSummary, type Health } from "@/lib/overview";
-import { FrontHealthBadge, HEALTH_BAR_CLASSES, JiraStatusBadge } from "./badges";
+import { FrontHealthBadge, HEALTH_BAR_CLASSES, JiraStatusBadge } from "@/components/overview/badges";
 
 const BAR_ORDER: Health[] = ["concluido", "em_andamento", "nao_iniciado", "parado", "atrasado"];
 
