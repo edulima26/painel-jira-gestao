@@ -2,12 +2,9 @@
 
 import { useMemo, useState } from "react";
 import {
-  FRONT_HEALTH_RANK,
   QUARTERS,
   buildQuality,
-  buildQuarterRows,
   summarizeFront,
-  summarizeWithoutQuarter,
   type FrontInput,
   type Project,
   type Quarter,
@@ -16,7 +13,6 @@ import DataQualityPanel from "./DataQualityPanel";
 import FrontCards from "./FrontCards";
 import KpiRow from "./KpiRow";
 import ProjectGroups from "./ProjectGroups";
-import QuarterPanel from "@/components/overview/QuarterPanel";
 
 const NO_OWNER = "Sem responsável";
 
@@ -55,7 +51,7 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
   }, [projects, frontFilter]);
 
   // Frente e analista valem para tudo. Os indicadores do topo ignoram o filtro de status (já são a divisão
-  // por status) e a tabela por trimestre ignora os filtros de trimestre e status.
+  // por status).
   const scopedProjects = useMemo(
     () =>
       projects.filter(
@@ -86,14 +82,10 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
         ),
       )
       .filter((summary) => summary.projects.length > 0);
-    result.sort(
-      (a, b) => FRONT_HEALTH_RANK[a.health] - FRONT_HEALTH_RANK[b.health] || a.front.name.localeCompare(b.front.name),
-    );
+    result.sort((a, b) => a.front.name.localeCompare(b.front.name));
     return result;
   }, [fronts, visibleProjects, today]);
 
-  const quarterRows = useMemo(() => buildQuarterRows(scopedProjects), [scopedProjects]);
-  const withoutQuarter = useMemo(() => summarizeWithoutQuarter(scopedProjects), [scopedProjects]);
   const quality = useMemo(() => buildQuality(scopedProjects), [scopedProjects]);
 
   const hasFilters =
@@ -178,8 +170,6 @@ export default function DashboardView({ fronts, projects, currentQuarter, today 
       </section>
 
       <KpiRow projects={kpiProjects} />
-
-      <QuarterPanel rows={quarterRows} withoutQuarter={withoutQuarter} currentQuarter={currentQuarter} />
 
       {summaries.length === 0 ? (
         <p className="text-sm text-slate-500">Nenhum projeto encontrado para os filtros selecionados.</p>

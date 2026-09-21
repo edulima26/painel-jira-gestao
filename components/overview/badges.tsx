@@ -1,9 +1,4 @@
-import {
-  FRONT_HEALTH_LABELS,
-  HEALTH_LABELS,
-  type FrontHealth,
-  type Health,
-} from "@/lib/overview";
+import { HEALTH_LABELS, type Health } from "@/lib/overview";
 
 const HEALTH_CLASSES: Record<Health, string> = {
   concluido: "bg-emerald-100 text-emerald-700",
@@ -12,24 +7,6 @@ const HEALTH_CLASSES: Record<Health, string> = {
   parado: "bg-amber-100 text-amber-700",
   em_andamento: "bg-blue-100 text-blue-700",
   nao_iniciado: "bg-slate-100 text-slate-600",
-};
-
-const FRONT_HEALTH_CLASSES: Record<FrontHealth, string> = {
-  concluido: "bg-emerald-100 text-emerald-700",
-  atrasado: "bg-red-100 text-red-700",
-  parado: "bg-amber-100 text-amber-700",
-  em_andamento: "bg-blue-100 text-blue-700",
-  nao_iniciado: "bg-slate-100 text-slate-600",
-  sem_projetos: "bg-slate-100 text-slate-500",
-};
-
-export const HEALTH_BAR_CLASSES: Record<Health, string> = {
-  concluido: "bg-emerald-500",
-  cancelado: "bg-slate-300",
-  atrasado: "bg-red-500",
-  parado: "bg-amber-500",
-  em_andamento: "bg-blue-500",
-  nao_iniciado: "bg-slate-300",
 };
 
 const JIRA_CATEGORY_CLASSES: Record<string, string> = {
@@ -47,10 +24,6 @@ export function HealthBadge({ health, detail }: { health: Health; detail?: strin
       {detail ? ` · ${detail}` : ""}
     </span>
   );
-}
-
-export function FrontHealthBadge({ health }: { health: FrontHealth }) {
-  return <span className={`${BADGE_BASE} ${FRONT_HEALTH_CLASSES[health]}`}>{FRONT_HEALTH_LABELS[health]}</span>;
 }
 
 export function JiraStatusBadge({ status, category }: { status: string | null; category: string | null }) {

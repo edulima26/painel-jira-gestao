@@ -4,7 +4,6 @@ export type Quarter = 1 | 2 | 3 | 4;
 export const QUARTERS: Quarter[] = [1, 2, 3, 4];
 
 export type Health = "concluido" | "cancelado" | "atrasado" | "parado" | "em_andamento" | "nao_iniciado";
-export type FrontHealth = "concluido" | "atrasado" | "parado" | "em_andamento" | "nao_iniciado" | "sem_projetos";
 
 export const HEALTH_LABELS: Record<Health, string> = {
   concluido: "Concluído",
@@ -15,15 +14,6 @@ export const HEALTH_LABELS: Record<Health, string> = {
   nao_iniciado: "Não iniciado",
 };
 
-export const FRONT_HEALTH_LABELS: Record<FrontHealth, string> = {
-  concluido: "Concluída",
-  atrasado: "Atrasada",
-  parado: "Parada",
-  em_andamento: "Em andamento",
-  nao_iniciado: "Não iniciada",
-  sem_projetos: "Sem projetos",
-};
-
 export const HEALTH_RANK: Record<Health, number> = {
   atrasado: 0,
   parado: 1,
@@ -31,15 +21,6 @@ export const HEALTH_RANK: Record<Health, number> = {
   nao_iniciado: 3,
   concluido: 4,
   cancelado: 5,
-};
-
-export const FRONT_HEALTH_RANK: Record<FrontHealth, number> = {
-  atrasado: 0,
-  parado: 1,
-  em_andamento: 2,
-  nao_iniciado: 3,
-  concluido: 4,
-  sem_projetos: 5,
 };
 
 export interface FrontInput {
@@ -206,25 +187,14 @@ export interface FrontSummary {
   projects: Project[];
   activeCount: number;
   pct: number;
-  counts: Record<Health, number>;
   openSubtasks: number;
   nextDue: string | null;
   freshestUpdateDays: number | null;
-  health: FrontHealth;
 }
 
 export function summarizeFront(front: FrontInput, projects: Project[], today: string): FrontSummary {
-  const counts = countByHealth(projects);
   const active = projects.filter((project) => !project.isCancelled);
   const open = active.filter((project) => !project.isDelivered);
-
-  let health: FrontHealth;
-  if (active.length === 0) health = "sem_projetos";
-  else if (open.length === 0) health = "concluido";
-  else if (counts.atrasado > 0) health = "atrasado";
-  else if (counts.parado > 0) health = "parado";
-  else if (counts.em_andamento === 0 && counts.concluido === 0) health = "nao_iniciado";
-  else health = "em_andamento";
 
   const upcomingDueDates = open
     .map((project) => project.dueDate)
@@ -240,11 +210,9 @@ export function summarizeFront(front: FrontInput, projects: Project[], today: st
     projects,
     activeCount: active.length,
     pct: weightedPct(projects),
-    counts,
     openSubtasks: open.reduce((sum, project) => sum + Math.max(project.totalActivities - project.doneActivities, 0), 0),
     nextDue: upcomingDueDates.length > 0 ? upcomingDueDates[0] : null,
     freshestUpdateDays: updateAges.length > 0 ? Math.min(...updateAges) : null,
-    health,
   };
 }
 
@@ -397,13 +365,13 @@ export function buildQuality(projects: Project[]): QualityItem[] {
       id: "sem-trimestre",
       count: active.filter((project) => project.quarter === null).length,
       title: "Projetos sem trimestre definido",
-      hint: "Ficam fora da tabela de planejado x entregue.",
+      hint: "Ficam fora da análise da aba Trimestre.",
     },
     {
       id: "sem-planejamento",
       count: active.filter((project) => project.planned === null).length,
       title: "Projetos sem Planejamento Inicial preenchido",
-      hint: "Aparecem como “sem marcação” na tabela por trimestre.",
+      hint: "Aparecem como “sem marcação” na aba Trimestre.",
     },
   ];
 

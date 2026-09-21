@@ -32,6 +32,9 @@ export default async function Navbar() {
             <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">Dashboard</Link>
             <Link href="/trimestre" className="text-slate-600 hover:text-slate-900">Trimestre</Link>
             <Link href="/analistas" className="text-slate-600 hover:text-slate-900">Analistas</Link>
+            {(role === "admin" || role === "gestor") && (
+              <Link href="/desenvolvimento" className="text-slate-600 hover:text-slate-900">Desenvolvimento Individual</Link>
+            )}
             <Link href="/meu-painel" className="text-slate-600 hover:text-slate-900">Meu Painel</Link>
             {role === "admin" && (
               <>

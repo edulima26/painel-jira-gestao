@@ -24,6 +24,11 @@ pessoal do analista.
   por frente e lista de projetos filtrável.
 - **Analistas**: uma linha por responsável (projetos por categoria de status do Jira, atrasados,
   parados, % e subtarefas abertas atribuídas). "Sem responsável" reúne o que não tem dono.
+- **Desenvolvimento Individual** (só administradores e gestores): feedbacks e reuniões de
+  desenvolvimento por analista, com alerta de cadência (mais de 30 dias sem reunião ou próxima
+  reunião vencida) e "sinais dos projetos" do Jira para preparar a conversa. Os registros ficam em
+  `analyst_feedbacks` e `analyst_meetings`, protegidos por RLS (`is_manager()`); analistas comuns
+  não leem nada. O analista é identificado pelo nome que vem do Jira.
 - **Meu Painel**: projetos e tarefas do próprio analista.
 
 ## Regras da Visão geral
