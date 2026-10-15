@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import RefreshData from "@/components/RefreshData";
 import { createClient } from "@/lib/supabase/server";
 import { loadOverviewData } from "@/lib/overview-data";
 import type { FeedbackKind, FeedbackRecord, MeetingKind, MeetingRecord } from "@/lib/development";
@@ -74,11 +75,16 @@ export default async function DesenvolvimentoPage() {
     <div>
       <Navbar />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-1 text-2xl font-semibold text-slate-900">Desenvolvimento individual</h1>
-        <p className="mb-6 text-sm text-slate-500">
-          Registro de feedbacks e reuniões de desenvolvimento de cada analista, junto com os sinais dos projetos em
-          que atuam. Visível apenas para administradores e gestores.
-        </p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="mb-1 text-2xl font-semibold text-slate-900">Desenvolvimento individual</h1>
+            <p className="text-sm text-slate-500">
+              Registro de feedbacks e reuniões de desenvolvimento de cada analista, junto com os sinais dos projetos
+              em que atuam. Visível apenas para administradores e gestores.
+            </p>
+          </div>
+          <RefreshData />
+        </div>
         {error ? (
           <div className="card text-sm text-red-600">Não foi possível carregar os dados: {error}</div>
         ) : (
