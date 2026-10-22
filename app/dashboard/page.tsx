@@ -1,3 +1,4 @@
+import ExportExcel from "@/components/ExportExcel";
 import Navbar from "@/components/Navbar";
 import RefreshData from "@/components/RefreshData";
 import { loadOverviewData } from "@/lib/overview-data";
@@ -17,7 +18,10 @@ export default async function DashboardPage() {
               Sincronizado do Jira: {fronts.length} frentes de trabalho e {projects.length} projetos.
             </p>
           </div>
-          <RefreshData />
+          <div className="flex flex-wrap items-start gap-3">
+            <ExportExcel />
+            <RefreshData />
+          </div>
         </div>
         {error ? (
           <div className="card text-sm text-red-600">Não foi possível carregar os dados: {error}</div>

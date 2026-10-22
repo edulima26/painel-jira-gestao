@@ -19,7 +19,9 @@ pessoal do analista.
 
 ## Abas
 
-- **Dashboard**: visão geral (indicadores por status do Jira, frentes e projetos).
+- **Dashboard**: visão geral (indicadores por status do Jira, frentes e projetos). O botão
+  **Exportar Excel** (admin e gestor) baixa todos os projetos com nome, frente, planejamento inicial,
+  responsável, descrição, status, % completo e trimestre (`/api/export/projetos`).
 - **Trimestre**: um trimestre por vez (padrão: o atual) com entrega, planejados x adicionados, quebra
   por frente e lista de projetos filtrável.
 - **Analistas**: uma linha por responsável (projetos por categoria de status do Jira, atrasados,

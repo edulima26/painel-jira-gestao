@@ -129,6 +129,39 @@ function fieldText(value: unknown): string | null {
   return null;
 }
 
+// Converte a descrição do Jira (ADF, um JSON em árvore) em texto simples.
+function adfToText(node: unknown): string {
+  if (node === null || node === undefined) return "";
+  if (typeof node === "string") return node;
+  if (typeof node !== "object") return "";
+
+  const item = node as { type?: string; text?: string; content?: unknown[]; attrs?: Record<string, unknown> };
+  if (item.type === "text") return item.text ?? "";
+  if (item.type === "hardBreak") return "\n";
+  if (item.type === "mention") return String(item.attrs?.text ?? "");
+  if (item.type === "emoji") return String(item.attrs?.text ?? item.attrs?.shortName ?? "");
+  if (item.type === "inlineCard") return String(item.attrs?.url ?? "");
+
+  const inner = (Array.isArray(item.content) ? item.content : []).map(adfToText);
+  switch (item.type) {
+    case "paragraph":
+    case "heading":
+    case "codeBlock":
+      return `${inner.join("")}\n`;
+    case "listItem":
+      return `- ${inner.join("").trim()}\n`;
+    case "tableRow":
+      return `${inner.map((cell) => cell.trim()).join(" | ")}\n`;
+    default:
+      return inner.join("");
+  }
+}
+
+function descriptionText(issue: JiraIssue): string | null {
+  const text = adfToText(issue.fields.description).replace(/\n{3,}/g, "\n\n").trim();
+  return text === "" ? null : text;
+}
+
 function pickFieldText(issue: JiraIssue, ids: string[]) {
   for (const id of ids) {
     const text = fieldText(issue.fields[id]);
@@ -258,6 +291,7 @@ Deno.serve(async (req: Request) => {
       "parent",
       "duedate",
       "updated",
+      "description",
       ...quarterIds,
       ...planningIds,
     ];
@@ -333,6 +367,7 @@ Deno.serve(async (req: Request) => {
           status: issue.fields.status?.name ?? null,
           status_category: issue.fields.status?.statusCategory?.key ?? null,
           due_date: issue.fields.duedate ?? null,
+          description: descriptionText(issue),
           quarter_label: pickFieldText(issue, quarterIds),
           initial_planning: pickFieldText(issue, planningIds),
           jira_updated_at: issue.fields.updated ?? null,
