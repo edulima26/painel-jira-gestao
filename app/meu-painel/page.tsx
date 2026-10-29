@@ -1,24 +1,33 @@
 import Navbar from "@/components/Navbar";
 import ProgressBar from "@/components/ProgressBar";
 import { createClient } from "@/lib/supabase/server";
+import { JIRA_SPACE } from "@/lib/space";
 
 export default async function MeuPainelPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: myProjects }, { data: myActivities }, { data: completion }] = await Promise.all([
+  const [{ data: allProjects }, { data: allActivities }, { data: completion }] = await Promise.all([
     supabase
       .from("projects")
-      .select("id, jira_key, name, status, due_date, work_fronts(name)")
+      .select("id, jira_key, name, status, due_date, work_fronts(name, jira_space)")
       .eq("assignee_profile_id", user.id),
     supabase
       .from("activities")
-      .select("id, jira_key, name, status, is_done, project_id, projects(name)")
+      .select("id, jira_key, name, status, is_done, project_id, projects(name, work_fronts(jira_space))")
       .eq("assignee_profile_id", user.id)
       .order("is_done", { ascending: true }),
     supabase.from("project_completion").select("*"),
   ]);
+
+  const one = <T,>(value: T | T[] | null | undefined) => (Array.isArray(value) ? value[0] : value) ?? null;
+  const myProjects = (allProjects ?? []).filter(
+    (p) => !JIRA_SPACE || one(one(p.work_fronts as any))?.jira_space === JIRA_SPACE,
+  );
+  const myActivities = (allActivities ?? []).filter(
+    (a) => !JIRA_SPACE || one(one(one(a.projects as any))?.work_fronts)?.jira_space === JIRA_SPACE,
+  );
 
   const completionByProject = new Map((completion ?? []).map((c) => [c.project_id, c]));
   const openActivities = (myActivities ?? []).filter((a) => !a.is_done);

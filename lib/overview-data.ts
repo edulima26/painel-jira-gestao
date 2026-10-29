@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { JIRA_SPACE } from "@/lib/space";
 import { deriveProject, type FrontInput, type Project, type Quarter, type SubtaskRow } from "@/lib/overview";
 
 interface RawFront {
@@ -56,10 +57,12 @@ export interface OverviewData {
 export async function loadOverviewData(options: { withSubtasks?: boolean } = {}): Promise<OverviewData> {
   const supabase = createClient();
 
+  const frontsQuery = supabase
+    .from("work_fronts")
+    .select("id, jira_key, name, status, status_category, jira_assignee_name, profiles:assignee_profile_id(full_name)");
+
   const [frontsResult, projectsResult, completionResult] = await Promise.all([
-    supabase
-      .from("work_fronts")
-      .select("id, jira_key, name, status, status_category, jira_assignee_name, profiles:assignee_profile_id(full_name)"),
+    JIRA_SPACE ? frontsQuery.eq("jira_space", JIRA_SPACE) : frontsQuery,
     supabase
       .from("projects")
       .select(
@@ -82,8 +85,16 @@ export async function loadOverviewData(options: { withSubtasks?: boolean } = {})
     frontsResult.error?.message ?? projectsResult.error?.message ?? completionResult.error?.message ?? subtaskError;
 
   const frontsRaw = (frontsResult.data ?? []) as unknown as RawFront[];
-  const projectsRaw = (projectsResult.data ?? []) as unknown as RawProject[];
-  const completionRaw = (completionResult.data ?? []) as unknown as RawCompletion[];
+  // Projetos, % de conclusão e subtarefas não têm espaço próprio: herdam o da frente (épico).
+  const frontIds = new Set(frontsRaw.map((front) => front.id));
+  const projectsRaw = ((projectsResult.data ?? []) as unknown as RawProject[]).filter(
+    (project) => !JIRA_SPACE || frontIds.has(project.work_front_id),
+  );
+  const projectIds = new Set(projectsRaw.map((project) => project.id));
+  const completionRaw = ((completionResult.data ?? []) as unknown as RawCompletion[]).filter(
+    (completion) => !JIRA_SPACE || projectIds.has(completion.project_id),
+  );
+  if (JIRA_SPACE) subtaskRaw = subtaskRaw.filter((row) => projectIds.has(row.project_id));
 
   const now = new Date();
   const today = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });

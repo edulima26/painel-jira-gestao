@@ -18,6 +18,7 @@ interface JiraIssue {
     parent?: { id?: string; key?: string; fields?: { issuetype?: { name?: string } } } | null;
     duedate?: string | null;
     updated?: string | null;
+    project?: { name?: string };
     // campos personalizados (customfield_XXXXX) chegam por id
     [key: string]: unknown;
   };
@@ -292,6 +293,7 @@ Deno.serve(async (req: Request) => {
       "duedate",
       "updated",
       "description",
+      "project",
       ...quarterIds,
       ...planningIds,
     ];
@@ -301,8 +303,9 @@ Deno.serve(async (req: Request) => {
       .select("jira_project")
       .eq("id", connection.id)
       .single();
-    const projectName = scopeRow?.jira_project?.trim();
-    const projectScope = projectName ? `project = ${quoteJqlValue(projectName)} AND ` : "";
+    // jira_project aceita vários espaços separados por vírgula (ex.: "Canais Digitais e Processos, Comercial").
+    const spaces = (scopeRow?.jira_project ?? "").split(",").map((value: string) => value.trim()).filter(Boolean);
+    const projectScope = spaces.length > 0 ? `project in (${spaces.map(quoteJqlValue).join(",")}) AND ` : "";
 
     const [epicIssues, storyIssues, taskIssues] = await Promise.all([
       jiraSearch(connection.site_url, authHeader, `${projectScope}${issueTypeClause(epicTypes)}`, fields),
@@ -318,6 +321,7 @@ Deno.serve(async (req: Request) => {
       const assigneeEmail = issue.fields.assignee?.emailAddress?.toLowerCase();
       return {
         jira_connection_id: connection.id,
+        jira_space: issue.fields.project?.name ?? null,
         jira_issue_id: issue.id,
         jira_key: issue.key,
         name: issue.fields.summary,

@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
+import { JIRA_SPACE } from "@/lib/space";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,15 +65,20 @@ export async function GET() {
       .select(
         "id, work_front_id, name, status, initial_planning, quarter_label, description, jira_assignee_name, profiles:assignee_profile_id(full_name)",
       ),
-    supabase.from("work_fronts").select("id, name"),
+    JIRA_SPACE
+      ? supabase.from("work_fronts").select("id, name").eq("jira_space", JIRA_SPACE)
+      : supabase.from("work_fronts").select("id, name"),
     supabase.from("project_completion").select("project_id, completion_pct"),
   ]);
 
   const failure = projectsResult.error ?? frontsResult.error ?? completionResult.error;
   if (failure) return plainResponse(`Não foi possível carregar os dados: ${failure.message}`, 500);
 
-  const projects = (projectsResult.data ?? []) as unknown as RawProject[];
   const fronts = (frontsResult.data ?? []) as unknown as RawFront[];
+  const frontIds = new Set(fronts.map((front) => front.id));
+  const projects = ((projectsResult.data ?? []) as unknown as RawProject[]).filter(
+    (project) => !JIRA_SPACE || frontIds.has(project.work_front_id),
+  );
   const completions = (completionResult.data ?? []) as unknown as RawCompletion[];
 
   const frontNameById = new Map<string, string>();
