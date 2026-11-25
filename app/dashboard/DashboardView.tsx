@@ -22,6 +22,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "parado", label: "Parado" },
   { value: "em_andamento", label: "Em andamento" },
   { value: "nao_iniciado", label: "Não iniciado" },
+  { value: "stand_by", label: "Stand by" },
   { value: "concluido", label: "Concluído" },
   { value: "cancelado", label: "Cancelado" },
 ];
