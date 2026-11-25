@@ -6,6 +6,8 @@ export interface Profile {
   full_name: string | null;
   role: UserRole;
   jira_account_id: string | null;
+  active: boolean;
+  must_change_password: boolean;
 }
 
 export interface WorkFront {

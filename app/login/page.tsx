@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,6 +12,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // O middleware envia para cá com ?erro=desativado quando a conta foi desativada.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("erro") === "desativado") {
+      setError("Usuário desativado. Fale com o administrador.");
+    }
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -21,7 +27,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError("E-mail ou senha inválidos.");
+      setError(/banned/i.test(error.message) ? "Usuário desativado. Fale com o administrador." : "E-mail ou senha inválidos.");
       setLoading(false);
       return;
     }
@@ -69,10 +75,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-sm text-slate-500">
-          Ainda não tem conta?{" "}
-          <Link href="/signup" className="font-medium text-brand-600 hover:underline">
-            Criar conta
-          </Link>
+          Não tem acesso? Peça a um administrador para criar o seu usuário.
         </p>
       </div>
     </div>
