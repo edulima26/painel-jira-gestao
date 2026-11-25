@@ -54,15 +54,17 @@ export interface OverviewData {
 
 // Carrega frentes, projetos (já com status derivados) e, se pedido, as subtarefas por analista.
 // Roda no servidor; as datas usam o fuso de Brasília para o resultado ser igual no servidor e no navegador.
-export async function loadOverviewData(options: { withSubtasks?: boolean } = {}): Promise<OverviewData> {
+export async function loadOverviewData(options: { withSubtasks?: boolean; space?: string } = {}): Promise<OverviewData> {
   const supabase = createClient();
+  // `space` (por página) tem prioridade sobre o JIRA_SPACE do ambiente.
+  const space = options.space ?? JIRA_SPACE;
 
   const frontsQuery = supabase
     .from("work_fronts")
     .select("id, jira_key, name, status, status_category, jira_assignee_name, profiles:assignee_profile_id(full_name)");
 
   const [frontsResult, projectsResult, completionResult] = await Promise.all([
-    JIRA_SPACE ? frontsQuery.eq("jira_space", JIRA_SPACE) : frontsQuery,
+    space ? frontsQuery.eq("jira_space", space) : frontsQuery,
     supabase
       .from("projects")
       .select(
@@ -88,13 +90,13 @@ export async function loadOverviewData(options: { withSubtasks?: boolean } = {})
   // Projetos, % de conclusão e subtarefas não têm espaço próprio: herdam o da frente (épico).
   const frontIds = new Set(frontsRaw.map((front) => front.id));
   const projectsRaw = ((projectsResult.data ?? []) as unknown as RawProject[]).filter(
-    (project) => !JIRA_SPACE || frontIds.has(project.work_front_id),
+    (project) => !space || frontIds.has(project.work_front_id),
   );
   const projectIds = new Set(projectsRaw.map((project) => project.id));
   const completionRaw = ((completionResult.data ?? []) as unknown as RawCompletion[]).filter(
-    (completion) => !JIRA_SPACE || projectIds.has(completion.project_id),
+    (completion) => !space || projectIds.has(completion.project_id),
   );
-  if (JIRA_SPACE) subtaskRaw = subtaskRaw.filter((row) => projectIds.has(row.project_id));
+  if (space) subtaskRaw = subtaskRaw.filter((row) => projectIds.has(row.project_id));
 
   const now = new Date();
   const today = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });

@@ -305,7 +305,30 @@ Deno.serve(async (req: Request) => {
       .single();
     // jira_project aceita vários espaços separados por vírgula (ex.: "Canais Digitais e Processos, Comercial").
     const spaces = (scopeRow?.jira_project ?? "").split(",").map((value: string) => value.trim()).filter(Boolean);
-    const projectScope = spaces.length > 0 ? `project in (${spaces.map(quoteJqlValue).join(",")}) AND ` : "";
+
+    // Resolve cada espaço pelo nome ou chave (ignorando acentos, caixa e espaços sobrando) e filtra pela chave.
+    // A lista de projetos visíveis ao token vai para o resumo, para diagnosticar nomes que não casam.
+    let visibleProjects: { key: string; name: string }[] = [];
+    try {
+      const projectsRes = await fetch(`${connection.site_url}/rest/api/3/project/search?maxResults=200`, {
+        headers: { Authorization: authHeader, Accept: "application/json" },
+      });
+      if (projectsRes.ok) {
+        const projectsData = await projectsRes.json();
+        visibleProjects = (projectsData.values ?? []).map((p: { key: string; name: string }) => ({ key: p.key, name: p.name }));
+      }
+    } catch (error) {
+      console.error("jira-sync project list error", error);
+    }
+    const unresolvedSpaces: string[] = [];
+    const spaceRefs = spaces.map((space: string) => {
+      const match = visibleProjects.find(
+        (p) => normalizeName(p.name) === normalizeName(space) || p.key.toLowerCase() === space.toLowerCase(),
+      );
+      if (!match) unresolvedSpaces.push(space);
+      return match ? match.key : space;
+    });
+    const projectScope = spaceRefs.length > 0 ? `project in (${spaceRefs.map(quoteJqlValue).join(",")}) AND ` : "";
 
     const [epicIssues, storyIssues, taskIssues] = await Promise.all([
       jiraSearch(connection.site_url, authHeader, `${projectScope}${issueTypeClause(epicTypes)}`, fields),
@@ -321,7 +344,7 @@ Deno.serve(async (req: Request) => {
       const assigneeEmail = issue.fields.assignee?.emailAddress?.toLowerCase();
       return {
         jira_connection_id: connection.id,
-        jira_space: issue.fields.project?.name ?? null,
+        jira_space: issue.fields.project?.name?.trim() ?? null,
         jira_issue_id: issue.id,
         jira_key: issue.key,
         name: issue.fields.summary,
@@ -350,6 +373,7 @@ Deno.serve(async (req: Request) => {
     // 2) Projetos (segundo nível: histórias, tarefas etc.). Épicos (hierarchyLevel 1) nunca são projetos,
     // mesmo quando o mapeamento usa uma função como standardIssueTypes().
     let skippedStories = 0;
+    const skippedStoryList: Record<string, string | null>[] = [];
     const projectCandidates = storyIssues.filter((issue) => issue.fields.issuetype?.hierarchyLevel !== 1);
     const projectRows = projectCandidates
       .map((issue) => {
@@ -357,6 +381,14 @@ Deno.serve(async (req: Request) => {
         const workFrontId = parentId ? workFrontIdByJiraId.get(parentId) : undefined;
         if (!workFrontId) {
           skippedStories += 1;
+          skippedStoryList.push({
+            key: issue.key,
+            name: issue.fields.summary,
+            space: issue.fields.project?.name?.trim() ?? null,
+            type: issue.fields.issuetype?.name ?? null,
+            parent: issue.fields.parent?.key ?? null,
+            status: issue.fields.status?.name ?? null,
+          });
           return null;
         }
         const assigneeEmail = issue.fields.assignee?.emailAddress?.toLowerCase();
@@ -429,9 +461,11 @@ Deno.serve(async (req: Request) => {
 
     const summary = {
       synced_at: new Date().toISOString(),
+      spaces: { configured: spaces, queried: spaceRefs, unresolved: unresolvedSpaces, visible_projects: visibleProjects },
       fetched: { epics: epicIssues.length, stories: storyIssues.length, tasks: taskIssues.length },
       linked: { work_fronts: workFrontRows.length, projects: projectRows.length, activities: activityRows.length },
       skipped: { stories_without_epic: skippedStories, subtasks_without_project: skippedTasks },
+      skipped_stories: skippedStoryList,
       story_types: countByIssueType(projectCandidates),
       parent_types: { stories: countByParentType(projectCandidates), tasks: countByParentType(taskIssues) },
       custom_fields: { quarter: quarterFields, initial_planning: planningFields, error: customFieldsError },

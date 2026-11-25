@@ -30,7 +30,8 @@ export default async function Navbar() {
           </Link>
           <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">Dashboard</Link>
-            <Link href="/trimestre" className="text-slate-600 hover:text-slate-900">Trimestre</Link>
+            <Link href="/comercial" className="text-slate-600 hover:text-slate-900">Comercial</Link>
+            <Link href="/trimestre"className="text-slate-600 hover:text-slate-900">Trimestre</Link>
             <Link href="/analistas" className="text-slate-600 hover:text-slate-900">Analistas</Link>
             {(role === "admin" || role === "gestor") && (
               <Link href="/desenvolvimento" className="text-slate-600 hover:text-slate-900">Desenvolvimento Individual</Link>
