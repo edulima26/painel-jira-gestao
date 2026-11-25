@@ -32,6 +32,7 @@ const SCOPES: { value: QuarterScope; label: string }[] = [
   { value: "adicionados", label: "Adicionados" },
   { value: "entregues", label: "Entregues" },
   { value: "em_aberto", label: "Em aberto" },
+  { value: "stand_by", label: "Stand by" },
   { value: "cancelados", label: "Cancelados" },
 ];
 
@@ -82,6 +83,7 @@ export default function QuarterView({ fronts, projects, currentQuarter, today }:
       adicionados: 0,
       entregues: 0,
       em_aberto: 0,
+      stand_by: 0,
       cancelados: 0,
     };
     for (const item of SCOPES) {

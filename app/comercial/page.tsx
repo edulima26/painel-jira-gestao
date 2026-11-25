@@ -50,6 +50,7 @@ export default async function ComercialPage() {
     { label: "Projetos", value: projects.length },
     { label: "Em andamento", value: counts.em_andamento },
     { label: "Não iniciados", value: counts.nao_iniciado },
+    { label: "Stand by", value: counts.stand_by },
     { label: "Atrasados", value: counts.atrasado },
     { label: "Concluídos", value: counts.concluido },
   ];
@@ -74,7 +75,7 @@ export default async function ComercialPage() {
           <div className="card text-sm text-slate-500">Nenhum projeto do Comercial sincronizado ainda.</div>
         ) : (
           <>
-            <section className="mb-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <section className="mb-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
               <div className="card lg:col-span-1">
                 <p className="text-xs text-slate-500">% de conclusão</p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{weightedPct(projects).toFixed(0)}%</p>

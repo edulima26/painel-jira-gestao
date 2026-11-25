@@ -3,7 +3,7 @@ export const STALE_DAYS = 14;
 export type Quarter = 1 | 2 | 3 | 4;
 export const QUARTERS: Quarter[] = [1, 2, 3, 4];
 
-export type Health = "concluido" | "cancelado" | "atrasado" | "parado" | "em_andamento" | "nao_iniciado";
+export type Health = "concluido" | "cancelado" | "atrasado" | "parado" | "em_andamento" | "nao_iniciado" | "stand_by";
 
 export const HEALTH_LABELS: Record<Health, string> = {
   concluido: "Concluído",
@@ -12,6 +12,7 @@ export const HEALTH_LABELS: Record<Health, string> = {
   parado: "Parado",
   em_andamento: "Em andamento",
   nao_iniciado: "Não iniciado",
+  stand_by: "Stand by",
 };
 
 export const HEALTH_RANK: Record<Health, number> = {
@@ -19,8 +20,9 @@ export const HEALTH_RANK: Record<Health, number> = {
   parado: 1,
   em_andamento: 2,
   nao_iniciado: 3,
-  concluido: 4,
-  cancelado: 5,
+  stand_by: 4,
+  concluido: 5,
+  cancelado: 6,
 };
 
 export interface FrontInput {
@@ -49,6 +51,10 @@ export interface ProjectInput {
   isDelivered: boolean;
   isCancelled: boolean;
   lastUpdate: string | null;
+}
+
+export function isStandByStatus(status: string | null): boolean {
+  return status !== null && /stand[\s-]?by/i.test(status);
 }
 
 export interface Project extends ProjectInput {
@@ -101,12 +107,16 @@ export function deriveProject(input: ProjectInput, today: string, nowMs: number)
     if (!Number.isNaN(updatedMs)) daysSinceUpdate = Math.max(0, Math.floor((nowMs - updatedMs) / 86400000));
   }
 
+  const isStandBy = isStandByStatus(input.jiraStatus);
   const isOpen = !input.isDelivered && !input.isCancelled;
-  const daysLate = isOpen && input.dueDate !== null && input.dueDate < today ? daysBetween(input.dueDate, today) : null;
+  // Projeto em stand by está pausado de propósito: não conta como atrasado nem parado.
+  const daysLate =
+    isOpen && !isStandBy && input.dueDate !== null && input.dueDate < today ? daysBetween(input.dueDate, today) : null;
 
   let health: Health;
   if (input.isCancelled) health = "cancelado";
   else if (input.isDelivered) health = "concluido";
+  else if (isStandBy) health = "stand_by";
   else if (daysLate !== null) health = "atrasado";
   else if (input.statusCategory === "new") health = "nao_iniciado";
   else if (daysSinceUpdate !== null && daysSinceUpdate > STALE_DAYS) health = "parado";
@@ -123,7 +133,7 @@ export function deriveProject(input: ProjectInput, today: string, nowMs: number)
 }
 
 export function emptyHealthCounts(): Record<Health, number> {
-  return { concluido: 0, cancelado: 0, atrasado: 0, parado: 0, em_andamento: 0, nao_iniciado: 0 };
+  return { concluido: 0, cancelado: 0, atrasado: 0, parado: 0, em_andamento: 0, nao_iniciado: 0, stand_by: 0 };
 }
 
 export function countByHealth(projects: Project[]): Record<Health, number> {
@@ -299,15 +309,23 @@ export function quarterRange(year: number, quarter: Quarter): { start: string; e
   return { start: `${year}-${pad(startMonth)}-01`, end: `${year}-${pad(endMonth)}-${pad(lastDay)}` };
 }
 
-export type QuarterScope = "todos" | "planejados" | "adicionados" | "entregues" | "em_aberto" | "cancelados";
+export type QuarterScope =
+  | "todos"
+  | "planejados"
+  | "adicionados"
+  | "entregues"
+  | "em_aberto"
+  | "stand_by"
+  | "cancelados";
 
 export function matchesQuarterScope(project: Project, scope: QuarterScope): boolean {
   if (scope === "cancelados") return project.isCancelled;
   if (project.isCancelled) return false;
+  if (scope === "stand_by") return project.health === "stand_by";
   if (scope === "planejados") return project.planned === true;
   if (scope === "adicionados") return project.planned === false;
   if (scope === "entregues") return project.isDelivered;
-  if (scope === "em_aberto") return !project.isDelivered;
+  if (scope === "em_aberto") return !project.isDelivered && project.health !== "stand_by";
   return true;
 }
 

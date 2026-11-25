@@ -7,6 +7,7 @@ const HEALTH_CLASSES: Record<Health, string> = {
   parado: "bg-amber-100 text-amber-700",
   em_andamento: "bg-blue-100 text-blue-700",
   nao_iniciado: "bg-slate-100 text-slate-600",
+  stand_by: "bg-violet-100 text-violet-700",
 };
 
 const JIRA_CATEGORY_CLASSES: Record<string, string> = {
