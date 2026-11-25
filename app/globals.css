@@ -47,3 +47,22 @@ body {
 .label {
   @apply mb-1 block text-sm font-medium text-slate-700;
 }
+
+/* Impressão / PDF: sem barra lateral e sem espaço reservado para ela; só o conteúdo da página. */
+@media print {
+  body:has(.app-sidebar) {
+    padding: 0;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .card {
+    box-shadow: none;
+  }
+
+  li {
+    break-inside: avoid;
+  }
+}

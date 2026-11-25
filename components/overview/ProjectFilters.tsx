@@ -29,7 +29,7 @@ export default function ProjectFilters({
   onReset,
 }: Props) {
   return (
-    <section className="card flex flex-wrap items-end gap-4">
+    <section className="card flex flex-wrap items-end gap-4 print:hidden">
       {onSearchChange ? (
         <div className="min-w-[220px] flex-1">
           <label className="label" htmlFor="filter-search">Buscar projeto</label>

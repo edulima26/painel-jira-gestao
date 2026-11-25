@@ -74,7 +74,7 @@ export default function MyProjectsView({ fronts, projects, details, openTasks, c
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 print:hidden">
         <button type="button" className={tab === "projetos" ? "btn-primary" : "btn-secondary"} onClick={() => setTab("projetos")}>
           Projetos ({filtered.length})
         </button>
@@ -147,7 +147,7 @@ export default function MyProjectsView({ fronts, projects, details, openTasks, c
         <div className="card text-sm text-slate-500">Nenhum projeto disponível para o report com estes filtros.</div>
       ) : (
         <section className="space-y-4">
-          <div className="card flex flex-wrap items-end justify-between gap-4">
+          <div className="card flex flex-wrap items-end justify-between gap-4 print:hidden">
             <div className="min-w-[260px] flex-1">
               <label className="label" htmlFor="report-project">Projeto</label>
               <select id="report-project" className="input" value={selected.id} onChange={(e) => setReportId(e.target.value)}>

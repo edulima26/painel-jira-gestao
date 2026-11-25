@@ -11,8 +11,8 @@ export default async function MeuPainelPage() {
     <div>
       <Navbar />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-1 text-2xl font-semibold text-slate-900">Meus projetos</h1>
-        <p className="mb-6 text-sm text-slate-500">
+        <h1 className="mb-1 text-2xl font-semibold text-slate-900 print:hidden">Meus projetos</h1>
+        <p className="mb-6 text-sm text-slate-500 print:hidden">
           Seus projetos e tarefas, sincronizados do Jira. Use a aba Report para ver o detalhe de um projeto.
         </p>
 

@@ -26,7 +26,7 @@ export default async function Navbar() {
 
   return (
     <>
-      <header className="flex h-12 items-center justify-between bg-valenet-indigo px-4 md:fixed md:inset-x-0 md:top-0 md:z-20">
+      <header className="print:hidden flex h-12 items-center justify-between bg-valenet-indigo px-4 md:fixed md:inset-x-0 md:top-0 md:z-20">
         <Link href={role === "analista" ? "/analista" : "/dashboard"} className="text-base font-semibold text-white">
           Painel de Projetos
         </Link>
@@ -37,7 +37,7 @@ export default async function Navbar() {
           <LogoutButton className="rounded-full bg-brand-500 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-white hover:bg-brand-600" />
         </div>
       </header>
-      <aside className="app-sidebar border-b border-slate-200 bg-white p-3 md:fixed md:bottom-0 md:left-0 md:top-12 md:z-10 md:w-60 md:overflow-y-auto md:border-b-0 md:border-r">
+      <aside className="app-sidebar print:hidden border-b border-slate-200 bg-white p-3 md:fixed md:bottom-0 md:left-0 md:top-12 md:z-10 md:w-60 md:overflow-y-auto md:border-b-0 md:border-r">
         <NavLinks role={role} />
       </aside>
     </>
