@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "./LogoutButton";
+import NavLinks from "./NavLinks";
 
 const roleLabels: Record<string, string> = {
   admin: "Administrador",
@@ -8,6 +9,7 @@ const roleLabels: Record<string, string> = {
   analista: "Analista",
 };
 
+// Barra lateral à esquerda (fixa a partir de md). O espaço do conteúdo vem de `body:has(.app-sidebar)` no globals.css.
 export default async function Navbar() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,36 +24,19 @@ export default async function Navbar() {
   const role = profile?.role ?? "analista";
 
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-2 px-4 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
-          <Link href="/dashboard" className="text-base font-semibold text-slate-900">
-            Painel de Projetos
-          </Link>
-          <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">Dashboard</Link>
-            <Link href="/comercial" className="text-slate-600 hover:text-slate-900">Comercial</Link>
-            <Link href="/trimestre"className="text-slate-600 hover:text-slate-900">Trimestre</Link>
-            <Link href="/analistas" className="text-slate-600 hover:text-slate-900">Analistas</Link>
-            {(role === "admin" || role === "gestor") && (
-              <Link href="/desenvolvimento" className="text-slate-600 hover:text-slate-900">Desenvolvimento Individual</Link>
-            )}
-            <Link href="/meu-painel" className="text-slate-600 hover:text-slate-900">Meu Painel</Link>
-            {role === "admin" && (
-              <>
-                <Link href="/admin/jira" className="text-slate-600 hover:text-slate-900">Conexão Jira</Link>
-                <Link href="/admin/usuarios" className="text-slate-600 hover:text-slate-900">Usuários</Link>
-              </>
-            )}
-          </nav>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-slate-500">
-            {profile?.full_name || user.email} · <span className="font-medium">{roleLabels[role]}</span>
-          </span>
-          <LogoutButton />
-        </div>
+    <aside className="app-sidebar flex flex-col gap-6 border-b border-slate-200 bg-white p-4 md:fixed md:inset-y-0 md:left-0 md:z-10 md:w-60 md:overflow-y-auto md:border-b-0 md:border-r">
+      <Link href="/dashboard" className="px-3 text-base font-semibold text-slate-900">
+        Painel de Projetos
+      </Link>
+      <NavLinks role={role} />
+      <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 px-3 pt-4 text-sm">
+        <span className="break-words text-slate-500">
+          {profile?.full_name || user.email}
+          <br />
+          <span className="font-medium">{roleLabels[role]}</span>
+        </span>
+        <LogoutButton />
       </div>
-    </header>
+    </aside>
   );
 }

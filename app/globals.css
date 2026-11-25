@@ -12,6 +12,13 @@ body {
   color: var(--foreground);
 }
 
+/* Abre espaço para a barra lateral (fixa em telas md+) só nas páginas que a exibem. */
+@media (min-width: 768px) {
+  body:has(.app-sidebar) {
+    padding-left: 15rem;
+  }
+}
+
 .progress-track {
   @apply h-2 w-full overflow-hidden rounded-full bg-slate-200;
 }
