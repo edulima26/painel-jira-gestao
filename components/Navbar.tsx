@@ -9,7 +9,8 @@ const roleLabels: Record<string, string> = {
   analista: "Analista",
 };
 
-// Barra lateral à esquerda (fixa a partir de md). O espaço do conteúdo vem de `body:has(.app-sidebar)` no globals.css.
+// Faixa índigo no topo + barra lateral branca (fixas a partir de md).
+// O espaço do conteúdo vem de `body:has(.app-sidebar)` no globals.css.
 export default async function Navbar() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,19 +25,21 @@ export default async function Navbar() {
   const role = profile?.role ?? "analista";
 
   return (
-    <aside className="app-sidebar flex flex-col gap-6 border-b border-slate-200 bg-white p-4 md:fixed md:inset-y-0 md:left-0 md:z-10 md:w-60 md:overflow-y-auto md:border-b-0 md:border-r">
-      <Link href="/dashboard" className="px-3 text-base font-semibold text-slate-900">
-        Painel de Projetos
-      </Link>
-      <NavLinks role={role} />
-      <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 px-3 pt-4 text-sm">
-        <span className="break-words text-slate-500">
-          {profile?.full_name || user.email}
-          <br />
-          <span className="font-medium">{roleLabels[role]}</span>
-        </span>
-        <LogoutButton />
-      </div>
-    </aside>
+    <>
+      <header className="flex h-12 items-center justify-between bg-valenet-indigo px-4 md:fixed md:inset-x-0 md:top-0 md:z-20">
+        <Link href="/dashboard" className="text-base font-semibold text-white">
+          Painel de Projetos
+        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="hidden text-indigo-100 sm:inline">
+            {profile?.full_name || user.email} · <span className="font-medium text-white">{roleLabels[role]}</span>
+          </span>
+          <LogoutButton className="rounded-full bg-brand-500 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-white hover:bg-brand-600" />
+        </div>
+      </header>
+      <aside className="app-sidebar border-b border-slate-200 bg-white p-3 md:fixed md:bottom-0 md:left-0 md:top-12 md:z-10 md:w-60 md:overflow-y-auto md:border-b-0 md:border-r">
+        <NavLinks role={role} />
+      </aside>
+    </>
   );
 }

@@ -32,7 +32,9 @@ export default function NavLinks({ role }: { role: string }) {
             key={item.href}
             href={item.href}
             className={`rounded-md px-3 py-2 ${
-              active ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              active
+                ? "bg-brand-50 font-medium text-valenet-navy"
+                : "text-slate-600 hover:bg-slate-50 hover:text-valenet-navy"
             }`}
           >
             {item.label}
