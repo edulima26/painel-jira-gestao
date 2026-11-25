@@ -19,6 +19,7 @@ interface JiraIssue {
     duedate?: string | null;
     updated?: string | null;
     project?: { name?: string };
+    priority?: { id?: string; name?: string } | null;
     // campos personalizados (customfield_XXXXX) chegam por id
     [key: string]: unknown;
   };
@@ -284,6 +285,20 @@ Deno.serve(async (req: Request) => {
     const quarterIds = quarterFields.map((f) => f.id);
     const planningIds = planningFields.map((f) => f.id);
 
+    // Prioridades na ordem do Jira (a primeira é a mais alta): rank 0 = maior prioridade.
+    const priorityRankById = new Map<string, number>();
+    try {
+      const prioritiesRes = await fetch(`${connection.site_url}/rest/api/3/priority`, {
+        headers: { Authorization: authHeader, Accept: "application/json" },
+      });
+      if (prioritiesRes.ok) {
+        const priorities: { id: string }[] = await prioritiesRes.json();
+        priorities.forEach((priority, index) => priorityRankById.set(priority.id, index));
+      }
+    } catch (error) {
+      console.error("jira-sync priorities error", error);
+    }
+
     const fields = [
       "summary",
       "issuetype",
@@ -292,6 +307,7 @@ Deno.serve(async (req: Request) => {
       "parent",
       "duedate",
       "updated",
+      "priority",
       "description",
       "project",
       ...quarterIds,
@@ -403,6 +419,8 @@ Deno.serve(async (req: Request) => {
           status: issue.fields.status?.name ?? null,
           status_category: issue.fields.status?.statusCategory?.key ?? null,
           due_date: issue.fields.duedate ?? null,
+          priority_name: issue.fields.priority?.name ?? null,
+          priority_rank: issue.fields.priority?.id ? priorityRankById.get(issue.fields.priority.id) ?? null : null,
           description: descriptionText(issue),
           quarter_label: pickFieldText(issue, quarterIds),
           initial_planning: pickFieldText(issue, planningIds),

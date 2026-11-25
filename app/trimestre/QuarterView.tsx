@@ -72,6 +72,21 @@ export default function QuarterView({ fronts, projects, currentQuarter, today }:
   const deliveryPct = ratio(delivered, total);
   const addedShare = ratio(counts.added, counts.planned + counts.added);
 
+  // Prioridade rank 0 = a mais alta do Jira. Entregues vão para o fim da lista.
+  const topPriority = useMemo(
+    () =>
+      quarterProjects
+        .filter((project) => project.priorityRank === 0 && !project.isCancelled)
+        .sort(
+          (a, b) =>
+            Number(a.isDelivered) - Number(b.isDelivered) ||
+            HEALTH_RANK[a.health] - HEALTH_RANK[b.health] ||
+            a.name.localeCompare(b.name),
+        ),
+    [quarterProjects],
+  );
+  const topPriorityName = topPriority[0]?.priorityName ?? null;
+
   const quarterRows = useMemo(() => buildQuarterRows(projects), [projects]);
   const withoutQuarter = useMemo(() => summarizeWithoutQuarter(projects), [projects]);
   const frontRows = useMemo(() => buildFrontPlanDelivery(fronts, quarterProjects), [fronts, quarterProjects]);
@@ -154,6 +169,29 @@ export default function QuarterView({ fronts, projects, currentQuarter, today }:
           hint={`${lateCount} projetos atrasados no trimestre`}
           tone={pendingPlanned > 0 ? "text-amber-600" : "text-emerald-700"}
         />
+      </section>
+
+      <section>
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Maior prioridade · {quarter}º trimestre ({topPriority.length})
+        </h2>
+        <p className="mb-3 text-xs text-slate-400">
+          Projetos do trimestre com a prioridade mais alta do Jira{topPriorityName ? ` (${topPriorityName})` : ""}.
+          Cancelados ficam de fora; os ainda não entregues aparecem primeiro.
+        </p>
+        <div className="card divide-y divide-slate-100 p-0">
+          {topPriority.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-slate-500">Nenhum projeto com a maior prioridade neste trimestre.</p>
+          ) : (
+            topPriority.map((project) => (
+              <ProjectRow
+                key={project.id}
+                project={project}
+                subtitle={`${frontNameById.get(project.frontId) ?? "—"} · ${project.owner ?? NO_OWNER_LABEL} · ${project.key}`}
+              />
+            ))
+          )}
+        </div>
       </section>
 
       <QuarterPanel rows={quarterRows} withoutQuarter={withoutQuarter} currentQuarter={currentQuarter} />

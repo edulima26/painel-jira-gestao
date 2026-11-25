@@ -45,6 +45,8 @@ export interface ProjectInput {
   dueDate: string | null;
   quarterLabel: string | null;
   initialPlanning: string | null;
+  priorityName: string | null;
+  priorityRank: number | null;
   totalActivities: number;
   doneActivities: number;
   completionPct: number;
