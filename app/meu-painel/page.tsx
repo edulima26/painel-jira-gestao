@@ -1,7 +1,6 @@
 import Navbar from "@/components/Navbar";
 import ProgressBar from "@/components/ProgressBar";
 import { createClient } from "@/lib/supabase/server";
-import { JIRA_SPACE } from "@/lib/space";
 
 export default async function MeuPainelPage() {
   const supabase = createClient();
@@ -11,23 +10,18 @@ export default async function MeuPainelPage() {
   const [{ data: allProjects }, { data: allActivities }, { data: completion }] = await Promise.all([
     supabase
       .from("projects")
-      .select("id, jira_key, name, status, due_date, work_fronts(name, jira_space)")
+      .select("id, jira_key, name, status, due_date, work_fronts(name)")
       .eq("assignee_profile_id", user.id),
     supabase
       .from("activities")
-      .select("id, jira_key, name, status, is_done, project_id, projects(name, work_fronts(jira_space))")
+      .select("id, jira_key, name, status, is_done, project_id, projects(name)")
       .eq("assignee_profile_id", user.id)
       .order("is_done", { ascending: true }),
     supabase.from("project_completion").select("*"),
   ]);
 
-  const one = <T,>(value: T | T[] | null | undefined) => (Array.isArray(value) ? value[0] : value) ?? null;
-  const myProjects = (allProjects ?? []).filter(
-    (p) => !JIRA_SPACE || one(one(p.work_fronts as any))?.jira_space === JIRA_SPACE,
-  );
-  const myActivities = (allActivities ?? []).filter(
-    (a) => !JIRA_SPACE || one(one(one(a.projects as any))?.work_fronts)?.jira_space === JIRA_SPACE,
-  );
+  const myProjects = allProjects ?? [];
+  const myActivities = allActivities ?? [];
 
   const completionByProject = new Map((completion ?? []).map((c) => [c.project_id, c]));
   const openActivities = (myActivities ?? []).filter((a) => !a.is_done);
@@ -36,7 +30,7 @@ export default async function MeuPainelPage() {
     <div>
       <Navbar />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-1 text-2xl font-semibold text-slate-900">Meu painel</h1>
+        <h1 className="mb-1 text-2xl font-semibold text-slate-900">Meus projetos</h1>
         <p className="mb-6 text-sm text-slate-500">Seus projetos e tarefas em aberto, sincronizados do Jira.</p>
 
         <section className="mb-8">

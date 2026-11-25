@@ -54,10 +54,10 @@ export interface OverviewData {
 
 // Carrega frentes, projetos (já com status derivados) e, se pedido, as subtarefas por analista.
 // Roda no servidor; as datas usam o fuso de Brasília para o resultado ser igual no servidor e no navegador.
-export async function loadOverviewData(options: { withSubtasks?: boolean; space?: string } = {}): Promise<OverviewData> {
+export async function loadOverviewData(options: { withSubtasks?: boolean; space?: string; allSpaces?: boolean } = {}): Promise<OverviewData> {
   const supabase = createClient();
-  // `space` (por página) tem prioridade sobre o JIRA_SPACE do ambiente.
-  const space = options.space ?? JIRA_SPACE;
+  // `space` (por página) tem prioridade sobre o JIRA_SPACE do ambiente; `allSpaces` ignora ambos (páginas pessoais).
+  const space = options.allSpaces ? undefined : (options.space ?? JIRA_SPACE);
 
   const frontsQuery = supabase
     .from("work_fronts")

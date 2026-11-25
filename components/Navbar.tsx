@@ -27,7 +27,7 @@ export default async function Navbar() {
   return (
     <>
       <header className="flex h-12 items-center justify-between bg-valenet-indigo px-4 md:fixed md:inset-x-0 md:top-0 md:z-20">
-        <Link href="/dashboard" className="text-base font-semibold text-white">
+        <Link href={role === "analista" ? "/analista" : "/dashboard"} className="text-base font-semibold text-white">
           Painel de Projetos
         </Link>
         <div className="flex items-center gap-3 text-sm">
