@@ -27,6 +27,7 @@ const GROUPS: NavGroup[] = [
       { href: "/analistas", label: "Analistas" },
       { href: "/desenvolvimento", label: "Desenvolvimento Individual" },
       { href: "/comercial", label: "Comercial" },
+      { href: "/relatorios", label: "Relatórios" },
     ],
   },
   {
