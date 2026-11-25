@@ -20,6 +20,7 @@ import {
   type Quarter,
   type SubtaskRow,
 } from "@/lib/overview";
+import WeeklyReport from "./WeeklyReport";
 
 interface Props {
   fronts: FrontInput[];
@@ -212,6 +213,14 @@ export default function ReportsView({ fronts, projects, subtasks, currentQuarter
           <Kpi label="Atualizados" value={weekly.updated} hint="com movimentação nos últimos 7 dias" tone="text-blue-600" />
           <Kpi label="Prazo próximo" value={weekly.dueSoon} hint="a entregar nos próximos 7 dias" tone="text-amber-600" />
           <Kpi label="Atrasados" value={weekly.late} hint="prazo vencido e não entregues" tone="text-red-600" />
+        </div>
+        <div className="mt-6">
+          <WeeklyReport
+            projects={scoped}
+            frontById={frontById}
+            today={today}
+            scopeLabel={`${space === "todos" ? "Todos os espaços" : space} · ${quarter === "todos" ? "ano todo" : `${quarter}º trimestre`}`}
+          />
         </div>
       </Section>
 
