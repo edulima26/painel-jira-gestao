@@ -2,13 +2,29 @@ import ExportExcel from "@/components/ExportExcel";
 import Navbar from "@/components/Navbar";
 import RefreshData from "@/components/RefreshData";
 import { loadOverviewData } from "@/lib/overview-data";
-import ReportsView from "./ReportsView";
+import { createClient } from "@/lib/supabase/server";
+import ReportsView, { type DoneTask } from "./ReportsView";
 
 export default async function ReportsPage() {
   const { fronts, projects, subtasks, currentQuarter, today, error } = await loadOverviewData({
     withSubtasks: true,
     allSpaces: true,
   });
+
+  // Subtarefas concluídas com data de criação e conclusão, para o relatório de tempo médio de conclusão.
+  const supabase = createClient();
+  const { data: doneRows, error: doneError } = await supabase
+    .from("activities")
+    .select("project_id, jira_assignee_name, jira_created_at, jira_resolved_at")
+    .eq("is_done", true)
+    .not("jira_created_at", "is", null)
+    .not("jira_resolved_at", "is", null);
+  const doneTasks: DoneTask[] = (doneRows ?? []).map((row) => ({
+    projectId: row.project_id as string,
+    assignee: (row.jira_assignee_name as string | null) ?? null,
+    createdAt: row.jira_created_at as string,
+    resolvedAt: row.jira_resolved_at as string,
+  }));
 
   return (
     <div>
@@ -24,13 +40,14 @@ export default async function ReportsPage() {
             <RefreshData />
           </div>
         </div>
-        {error ? (
-          <div className="card text-sm text-red-600">Não foi possível carregar os dados: {error}</div>
+        {error || doneError ? (
+          <div className="card text-sm text-red-600">Não foi possível carregar os dados: {error ?? doneError?.message}</div>
         ) : (
           <ReportsView
             fronts={fronts}
             projects={projects}
             subtasks={subtasks}
+            doneTasks={doneTasks}
             currentQuarter={currentQuarter}
             today={today}
           />

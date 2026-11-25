@@ -48,6 +48,8 @@ export interface ProjectInput {
   initialPlanning: string | null;
   priorityName: string | null;
   priorityRank: number | null;
+  createdAt: string | null;
+  resolvedAt: string | null;
   totalActivities: number;
   doneActivities: number;
   completionPct: number;

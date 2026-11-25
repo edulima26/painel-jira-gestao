@@ -25,6 +25,8 @@ interface RawProject {
   initial_planning: string | null;
   priority_name: string | null;
   priority_rank: number | null;
+  jira_created_at: string | null;
+  jira_resolved_at: string | null;
   jira_assignee_name: string | null;
   profiles: { full_name: string | null } | null;
 }
@@ -71,7 +73,7 @@ export async function loadOverviewData(options: { withSubtasks?: boolean; space?
     supabase
       .from("projects")
       .select(
-        "id, work_front_id, jira_key, name, status, status_category, due_date, quarter_label, initial_planning, priority_name, priority_rank, jira_assignee_name, profiles:assignee_profile_id(full_name)",
+        "id, work_front_id, jira_key, name, status, status_category, due_date, quarter_label, initial_planning, priority_name, priority_rank, jira_created_at, jira_resolved_at, jira_assignee_name, profiles:assignee_profile_id(full_name)",
       ),
     supabase
       .from("project_completion")
@@ -136,6 +138,8 @@ export async function loadOverviewData(options: { withSubtasks?: boolean; space?
         initialPlanning: project.initial_planning,
         priorityName: project.priority_name,
         priorityRank: project.priority_rank,
+        createdAt: project.jira_created_at,
+        resolvedAt: project.jira_resolved_at,
         totalActivities: Number(completion?.total_activities ?? 0),
         doneActivities: Number(completion?.done_activities ?? 0),
         completionPct: Number(completion?.completion_pct ?? 0),

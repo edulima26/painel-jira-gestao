@@ -20,6 +20,8 @@ interface JiraIssue {
     updated?: string | null;
     project?: { name?: string };
     priority?: { id?: string; name?: string } | null;
+    created?: string | null;
+    resolutiondate?: string | null;
     // campos personalizados (customfield_XXXXX) chegam por id
     [key: string]: unknown;
   };
@@ -172,6 +174,12 @@ function pickFieldText(issue: JiraIssue, ids: string[]) {
   return null;
 }
 
+// Data de conclusão: a resolução do Jira; se o fluxo não preenche, usa a última atualização de quem está concluído.
+function resolvedAt(issue: JiraIssue): string | null {
+  if (issue.fields.resolutiondate) return issue.fields.resolutiondate;
+  return issue.fields.status?.statusCategory?.key === "done" ? issue.fields.updated ?? null : null;
+}
+
 function countByIssueType(issues: JiraIssue[]) {
   const counts: Record<string, number> = {};
   for (const issue of issues) {
@@ -308,6 +316,8 @@ Deno.serve(async (req: Request) => {
       "duedate",
       "updated",
       "priority",
+      "created",
+      "resolutiondate",
       "description",
       "project",
       ...quarterIds,
@@ -421,6 +431,8 @@ Deno.serve(async (req: Request) => {
           due_date: issue.fields.duedate ?? null,
           priority_name: issue.fields.priority?.name ?? null,
           priority_rank: issue.fields.priority?.id ? priorityRankById.get(issue.fields.priority.id) ?? null : null,
+          jira_created_at: issue.fields.created ?? null,
+          jira_resolved_at: resolvedAt(issue),
           description: descriptionText(issue),
           quarter_label: pickFieldText(issue, quarterIds),
           initial_planning: pickFieldText(issue, planningIds),
@@ -462,6 +474,8 @@ Deno.serve(async (req: Request) => {
           status: issue.fields.status?.name ?? null,
           is_done: isDone,
           done_at: isDone ? issue.fields.updated ?? null : null,
+          jira_created_at: issue.fields.created ?? null,
+          jira_resolved_at: isDone ? resolvedAt(issue) : null,
           jira_updated_at: issue.fields.updated ?? null,
         };
       })
