@@ -3,6 +3,7 @@ import { JIRA_SPACE } from "@/lib/space";
 import { deriveProject, type FrontInput, type Project, type Quarter, type SubtaskRow } from "@/lib/overview";
 
 interface RawFront {
+  jira_space: string | null;
   id: string;
   jira_key: string;
   name: string;
@@ -63,7 +64,7 @@ export async function loadOverviewData(options: { withSubtasks?: boolean; space?
 
   const frontsQuery = supabase
     .from("work_fronts")
-    .select("id, jira_key, name, status, status_category, jira_assignee_name, profiles:assignee_profile_id(full_name)");
+    .select("id, jira_space, jira_key, name, status, status_category, jira_assignee_name, profiles:assignee_profile_id(full_name)");
 
   const [frontsResult, projectsResult, completionResult] = await Promise.all([
     space ? frontsQuery.eq("jira_space", space) : frontsQuery,
@@ -110,6 +111,7 @@ export async function loadOverviewData(options: { withSubtasks?: boolean; space?
   const fronts: FrontInput[] = frontsRaw
     .map((front) => ({
       id: front.id,
+      space: front.jira_space,
       key: front.jira_key,
       name: front.name,
       owner: front.profiles?.full_name || front.jira_assignee_name || null,

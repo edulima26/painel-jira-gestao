@@ -26,6 +26,7 @@ export const HEALTH_RANK: Record<Health, number> = {
 };
 
 export interface FrontInput {
+  space: string | null;
   id: string;
   key: string;
   name: string;
